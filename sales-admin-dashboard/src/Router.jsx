@@ -1,13 +1,12 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
-import Layout from '../components/layout/Layout';
-import Login from '../pages/auth/Login';
-import CustomerList from '../pages/customers/CustomerList';
-import CustomerForm from '../pages/customers/CustomerForm';
-import ProductList from '../pages/products/ProductList';
-import ProductForm from '../pages/products/ProductForm';
-import OrderList from '../pages/orders/OrderList';
-import OrderForm from '../pages/orders/OrderForm';
-import ProtectedRoute from './ProtectedRoute';
+import Layout from './components/layout/Layout';
+import Login from './pages/auth/Login';
+import CustomerList from './pages/customers/CustomerList';
+import CustomerForm from './pages/customers/CustomerForm';
+import ProductList from './pages/products/ProductList';
+import ProductForm from './pages/products/ProductForm';
+import OrderList from './pages/orders/OrderList';
+import OrderForm from './pages/orders/OrderForm';
 
 const router = createBrowserRouter([
   {
@@ -16,7 +15,7 @@ const router = createBrowserRouter([
   },
   {
     path: '/',
-    element: <ProtectedRoute><Layout /></ProtectedRoute>,
+    element: <Layout />,
     children: [
       {
         path: 'customers',
