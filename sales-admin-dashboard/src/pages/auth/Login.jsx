@@ -80,7 +80,7 @@ const Login = () => {
     e.preventDefault();
     
     if (validateForm()) {
-      dispatch(login({ username, password }));
+      dispatch(login({ username, accessKey: password }));
     }
   };
   

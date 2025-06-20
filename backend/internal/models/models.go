@@ -1,0 +1,37 @@
+// models.go defines the data structures for database entities.
+
+package models
+
+//Customer, Product, Order, OrderItem, and User structs for database entities.
+type Customer struct {
+    CustomerID int    `json:"customerId"`
+    Name       string `json:"name"`
+    Email      string `json:"email"`
+}
+
+type Product struct {
+    ProductID   int     `json:"productId"`
+    Name        string  `json:"name"`
+    Description string  `json:"description"`
+    Price       float64 `json:"price"`
+}
+
+type Order struct {
+    OrderID    int `json:"orderId"`
+    CustomerID int `json:"customerId"`
+    OrderDate  string `json:"orderDate"`
+}
+
+type OrderItem struct {
+    OrderItemID int `json:"orderItemId"`
+    OrderID     int `json:"orderId"`
+    ProductID   int `json:"productId"`
+    Quantity    int `json:"quantity"`
+}
+
+type User struct {
+    UserID     int    `json:"userId"`
+    Name       string `json:"name"`
+    AccessKey  string `json:"accessKey"`
+    UserActive int    `json:"userActive"`
+}
