@@ -209,6 +209,132 @@ func searchCustomersHandler(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(customers)
 }
 
+func CreateProductHandler(w http.ResponseWriter, r *http.Request) {
+    var product models.Product
+    if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
+        tools.HandleBadRequest(w, errors.New("invalid request"))
+        return
+    }
+
+    if product.Name == "" || product.Description == "" || product.Price == 0 || product.Stock == 0 {
+        tools.HandleBadRequest(w, errors.New("all fields are required"))
+        return
+    }
+
+    _, err := tools.DB.Exec(
+        "INSERT INTO products (name, price, stock, description) VALUES (?, ?, ?, ?)",
+        product.Name, product.Price, product.Stock, product.Description,
+    )
+    if err != nil {
+        tools.HandleInternalServerError(w, err)
+        return
+    }
+}
+
+func getProductsHandler(w http.ResponseWriter, r *http.Request) {
+    rows, err := tools.DB.Query("SELECT productId, name, price, stock, description FROM products")
+    if err != nil {
+        tools.HandleInternalServerError(w, err)
+        return
+    }
+    defer rows.Close()
+
+    var products []models.Product
+    for rows.Next() {
+        var p models.Product
+        if err := rows.Scan(&p.ID, &p.Name, &p.Price, &p.Stock, &p.Description); err != nil {
+            tools.HandleInternalServerError(w, err)
+            return
+        }
+        products = append(products, p)
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(products)
+}
+
+func getProductByIdHandler(w http.ResponseWriter, r *http.Request) {
+    id := chi.URLParam(r, "id")
+    var p models.Product
+    err := tools.DB.QueryRow(
+        "SELECT productId, name, price, stock, description FROM products WHERE productId = ?",
+        id,
+    ).Scan(&p.ID, &p.Name, &p.Price, &p.Stock, &p.Description)
+    if err != nil {
+        if err == sql.ErrNoRows {
+            http.Error(w, "Product not found", http.StatusNotFound)
+            return
+        }
+        tools.HandleInternalServerError(w, err)
+        return
+    }
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(p)
+}
+
+func updateProductHandler(w http.ResponseWriter, r *http.Request) {
+    id := chi.URLParam(r, "id")
+    var p models.Product
+    if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+        tools.HandleBadRequest(w, errors.New("invalid request"))
+        return
+    }
+    if p.Name == "" || p.Description == "" || p.Price == 0 || p.Stock == 0 {
+        tools.HandleBadRequest(w, errors.New("all fields are required"))
+        return
+    }
+    _, err := tools.DB.Exec(
+        "UPDATE products SET name=?, price=?, stock=?, description=? WHERE productId=?",
+        p.Name, p.Price, p.Stock, p.Description, id,
+    )
+    if err != nil {
+        tools.HandleInternalServerError(w, err)
+        return
+    }
+    w.WriteHeader(http.StatusNoContent)
+}
+
+func deleteProductHandler(w http.ResponseWriter, r *http.Request) {
+    id := chi.URLParam(r, "id")
+    _, err := tools.DB.Exec("DELETE FROM products WHERE productId = ?", id)
+    if err != nil {
+        tools.HandleInternalServerError(w, err)
+        return
+    }
+}
+
+func searchProductsHandler(w http.ResponseWriter, r *http.Request) {
+    query := strings.TrimSpace(r.URL.Query().Get("q"))
+    var rows *sql.Rows
+    var err error
+    if query != "" {
+        likeQuery := strings.ToLower(query) + "%"
+        rows, err = tools.DB.Query(
+            "SELECT productId, name, price, stock, description FROM products WHERE LOWER(name) LIKE ?",
+            likeQuery,
+        )
+    } else {
+        rows, err = tools.DB.Query("SELECT productId, name, price, stock, description FROM products")
+    }
+    if err != nil {
+        tools.HandleInternalServerError(w, err)
+        return
+    }
+    defer rows.Close()
+
+    var products []models.Product
+    for rows.Next() {
+        var p models.Product
+        if err := rows.Scan(&p.ID, &p.Name, &p.Price, &p.Stock, &p.Description); err != nil {
+            tools.HandleInternalServerError(w, err)
+            return
+        }
+        products = append(products, p)
+    }
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(products)
+}
+
 // Handler configures the HTTP router with CORS, middleware, and API endpoints.
 func Handler(r *chi.Mux) {
 	r.Use(cors.Handler(cors.Options{
@@ -222,11 +348,17 @@ func Handler(r *chi.Mux) {
 
 	r.Use(chimiddle.StripSlashes)
 	r.Post("/api/login", LoginHandler)
+	r.Post("/api/products", CreateProductHandler)
 	r.Post("/api/create-customer", CreateCustomerHandler)
 	r.Get("/api/customers", getCustomersHandler)
 	r.Get("/api/customers/{id}", getCustomerByIdHandler)
-	r.Put("/api/customers/{id}", updateCustomerDataHandler)
-	r.Delete("/api/customers/{id}/delete", deleteCustomerHandler)
 	r.Get("/api/customers/search", searchCustomersHandler)
+	r.Get("/api/products", getProductsHandler)
+	r.Get("/api/products/{id}", getProductByIdHandler)
+	r.Get("/api/products/search", searchProductsHandler)
+	r.Put("/api/products/{id}", updateProductHandler)
+	r.Put("/api/customers/{id}", updateCustomerDataHandler)
+	r.Delete("/api/products/{id}", deleteProductHandler)
+	r.Delete("/api/customers/{id}/delete", deleteCustomerHandler)
 }
 

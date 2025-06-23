@@ -12,10 +12,11 @@ type Customer struct {
 }
 
 type Product struct {
-    ProductID   int     `json:"productId"`
+    ID          int     `json:"productId"`
     Name        string  `json:"name"`
-    Description string  `json:"description"`
     Price       float64 `json:"price"`
+    Stock       int     `json:"stock"`
+    Description string  `json:"description"`
 }
 
 type Order struct {
