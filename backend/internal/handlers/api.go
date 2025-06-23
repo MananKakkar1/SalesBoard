@@ -167,6 +167,15 @@ func updateCustomerDataHandler(w http.ResponseWriter, r *http.Request) {
     w.WriteHeader(http.StatusNoContent)
 }
 
+func deleteCustomerHandler(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	_, err := tools.DB.Exec("DELETE FROM customers WHERE id = ?", id)
+	if err != nil {
+		tools.HandleInternalServerError(w, err)
+		return
+	}
+}
+
 // Handler configures the HTTP router with CORS, middleware, and API endpoints.
 func Handler(r *chi.Mux) {
 	r.Use(cors.Handler(cors.Options{
@@ -184,5 +193,6 @@ func Handler(r *chi.Mux) {
 	r.Get("/api/customers", getCustomersHandler)
 	r.Get("/api/customers/{id}", getCustomerByIdHandler)
 	r.Put("/api/customers/{id}", updateCustomerDataHandler)
+	r.Delete("/api/customers/{id}/delete", deleteCustomerHandler)
 }
 

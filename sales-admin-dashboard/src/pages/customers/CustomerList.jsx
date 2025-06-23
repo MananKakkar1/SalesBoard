@@ -3,9 +3,12 @@ import Card, { CardHeader, CardContent } from "../../components/common/Card";
 import Button from "../../components/common/Button";
 import InputField from "../../components/common/InputField";
 import { useEffect, useState } from "react";
+import { useDispatch } from "react-redux";
+import { fetchCustomers, deleteCustomer } from "../../features/auth/authSlice";
 
 const CustomerList = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -17,25 +20,32 @@ const CustomerList = () => {
     navigate(`/customers/${id}/edit`);
   };
 
-  const handleDeleteCustomer = (id) => {
-    console.log(`Delete customer with ID: ${id}`);
-  }
+  const handleDeleteCustomer = async (id) => {
+    setLoading(true);
+    try {
+      await dispatch(deleteCustomer(id)).unwrap();
+      // Refetch customers after delete
+      const data = await dispatch(fetchCustomers()).unwrap();
+      setCustomers(data);
+    } catch (error) {
+      console.error("Failed to delete customer", error);
+    }
+    setLoading(false);
+  };
 
   useEffect(() => {
-    const fetchCustomers = async () => {
+    const getCustomers = async () => {
       setLoading(true);
-      const response = await fetch("http://localhost:8080/api/customers");
-      if (!response.ok) {
+      try {
+        const data = await dispatch(fetchCustomers()).unwrap();
+        setCustomers(data);
+      } catch (error) {
         console.error("Failed to fetch customers");
-        setLoading(false);
-        return;
       }
-      const data = await response.json();
-      setCustomers(data);
       setLoading(false);
     };
-    fetchCustomers();
-  }, []);
+    getCustomers();
+  }, [dispatch]);
 
   return (
     <Card>
@@ -93,11 +103,11 @@ const CustomerList = () => {
                     >
                       Edit
                     </Button>
-                    <Button 
-                    color="secondary" 
-                    size="small" 
-                    style={{ marginLeft: 8 }}
-                    onClick={handleDeleteCustomer}
+                    <Button
+                      color="secondary"
+                      size="small"
+                      style={{ marginLeft: 8 }}
+                      onClick={() => handleDeleteCustomer(customer.id)}
                     >
                       Delete
                     </Button>

@@ -49,6 +49,30 @@ export const updateCustomer = createAsyncThunk(
   }
 );
 
+export const fetchCustomers = createAsyncThunk(
+  'customers/fetchCustomers',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/api/customers');
+      return response.data; // Return the list of customers
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.error || 'Failed to fetch customers');
+    }
+  }
+);
+
+export const deleteCustomer = createAsyncThunk(
+  'customers/deleteCustomer', 
+  async (id, { rejectWithValue }) => {
+    try {
+      await api.delete(`/api/customers/${id}/delete`);
+      return id; // Return the ID of the deleted customer
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.error || 'Failed to delete customer');
+    }
+  }
+)
+
 const initialState = {
   token: localStorage.getItem("token") || null,
   user: null,
