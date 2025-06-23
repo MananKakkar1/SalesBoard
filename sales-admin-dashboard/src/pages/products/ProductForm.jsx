@@ -63,17 +63,6 @@ const ProductForm = () => {
             type="text"
           />
           <InputField
-            label="SKU"
-            name="sku"
-            value={form.sku}
-            onChange={handleChange}
-            error={!!errors.sku}
-            helperText={errors.sku}
-            fullWidth
-            required
-            type="text"
-          />
-          <InputField
             label="Price"
             name="price"
             value={form.price}
@@ -83,6 +72,17 @@ const ProductForm = () => {
             fullWidth
             required
             type="number"
+          />
+          <InputField
+            label="Stock"
+            name="sku"
+            value={form.sku}
+            onChange={handleChange}
+            error={!!errors.stock}
+            helperText={errors.stock}
+            fullWidth
+            required
+            type="text"
           />
           <InputField
             label="Description"
