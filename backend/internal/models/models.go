@@ -4,9 +4,11 @@ package models
 
 //Customer, Product, Order, OrderItem, and User structs for database entities.
 type Customer struct {
-    CustomerID int    `json:"customerId"`
-    Name       string `json:"name"`
-    Email      string `json:"email"`
+    ID      int    `json:"id"`
+    Name    string `json:"name"`
+    Email   string `json:"email"`
+    Phone   string `json:"phone"`
+    Address string `json:"address"`
 }
 
 type Product struct {

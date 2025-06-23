@@ -3,6 +3,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import Card, { CardHeader, CardContent } from "../../components/common/Card";
 import Button from "../../components/common/Button";
 import InputField from "../../components/common/InputField";
+import { useDispatch } from "react-redux";
+import { createCustomer } from "../../features/auth/authSlice"; // <-- Add this import
+
 
 const fetchCustomerById = async (id) => {
   // To be replaced with actual API call
@@ -26,6 +29,7 @@ const CustomerForm = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState(initialState);
   const [errors, setErrors] = useState({});
+  const dispatch = useDispatch();
 
   // If editing, fetch customer data
   useEffect(() => {
@@ -50,17 +54,19 @@ const CustomerForm = () => {
     e.preventDefault();
     const errs = validate();
     setErrors(errs);
+
     if (Object.keys(errs).length === 0) {
-      if (id) {
-        // Update customer API call
-        // Temporary alert for testing
-        alert("Customer updated!");
-      } else {
-        // Create customer API call
-        // Temporary alert for testing
-        alert("Customer created!");
+      try {
+        if (id) {
+          // Update logic here
+        } else {
+          dispatch(createCustomer(form)).unwrap();
+          alert("Customer created!");
+        }
+        navigate("/customers");
+      } catch (error) {
+        alert(error || "Failed to create customer.");
       }
-      navigate("/customers");
     }
   };
 

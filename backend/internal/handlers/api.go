@@ -14,6 +14,7 @@ import (
 	chimiddle "github.com/go-chi/chi/middleware"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/MananKakkar1/min-manan/backend/internal/tools"
+	"github.com/MananKakkar1/min-manan/backend/internal/models"
 )
 
 // LoginRequest represents the expected JSON payload for login requests.
@@ -82,6 +83,49 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
+func CreateCustomerHandler(w http.ResponseWriter, r *http.Request) {
+	var customer models.Customer
+	if err := json.NewDecoder(r.Body).Decode(&customer); err != nil {
+		tools.HandleBadRequest(w, errors.New("invalid request"))
+		return
+	}
+	// Validate required fields
+	if customer.Name == "" || customer.Email == "" || customer.Phone == "" || customer.Address == "" {
+		tools.HandleBadRequest(w, errors.New("name and email are required"))
+		return
+	}
+	
+	_, err := tools.DB.Exec(
+		"INSERT INTO customers (name, email, phone, address) VALUES (?, ?, ?, ?)",
+		customer.Name, customer.Email, customer.Phone, customer.Address,
+	)
+	if err != nil {
+		tools.HandleInternalServerError(w, err)
+		return
+	}
+}
+
+func getCustomersHandler(w http.ResponseWriter, r *http.Request) {
+    rows, err := tools.DB.Query("SELECT id, name, email, phone, address FROM customers")
+    if err != nil {
+        tools.HandleInternalServerError(w, err)
+        return
+    }
+    defer rows.Close()
+
+    var customers []models.Customer
+    for rows.Next() {
+        var c models.Customer
+        if err := rows.Scan(&c.ID, &c.Name, &c.Email, &c.Phone, &c.Address); err != nil {
+            tools.HandleInternalServerError(w, err)
+            return
+        }
+        customers = append(customers, c)
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(customers)
+}
 // Handler configures the HTTP router with CORS, middleware, and API endpoints.
 func Handler(r *chi.Mux) {
 	// CORS middleware
@@ -96,5 +140,7 @@ func Handler(r *chi.Mux) {
 
 	r.Use(chimiddle.StripSlashes)
 	r.Post("/api/login", LoginHandler)
+	r.Post("/api/create-customer", CreateCustomerHandler)
+	r.Get("/api/customers", getCustomersHandler)
 }
 

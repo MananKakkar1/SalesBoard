@@ -25,6 +25,18 @@ export const login = createAsyncThunk(
   }
 );
 
+export const createCustomer = createAsyncThunk(
+  'customers/createCustomer',
+  async (customerData, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/api/create-customer', customerData);
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.error || 'Failed to create customer');
+    }
+  }
+);
+
 const initialState = {
   token: localStorage.getItem("token") || null,
   user: null,

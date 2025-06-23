@@ -29,6 +29,20 @@ func InitDB(filepath string) {
     if err != nil {
         log.Fatalf("Failed to create users table: %v", err)
     }
+
+    createCustomersTable := `
+    CREATE TABLE IF NOT EXISTS customers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    phone TEXT,
+    address TEXT
+    );`
+
+    _, err = DB.Exec(createCustomersTable)
+    if err != nil {
+        log.Fatalf("Failed to create customers table: %v", err)
+    }
     // Other tables will go below
 }
 
