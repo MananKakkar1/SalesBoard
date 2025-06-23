@@ -4,17 +4,12 @@ import Card, { CardHeader, CardContent } from "../../components/common/Card";
 import Button from "../../components/common/Button";
 import InputField from "../../components/common/InputField";
 import { useDispatch } from "react-redux";
-import { createCustomer } from "../../features/auth/authSlice"; // <-- Add this import
-
+import { createCustomer, updateCustomer } from "../../features/auth/authSlice";
+import api from "../../services/api"; 
 
 const fetchCustomerById = async (id) => {
-  // To be replaced with actual API call
-  return {
-    name: "John Doe",
-    email: "john@example.com",
-    phone: "555-123-4567",
-    address: "123 Main St",
-  };
+  const response = await api.get(`/api/customers/${id}`);
+  return response.data;
 };
 
 const initialState = {
@@ -31,7 +26,6 @@ const CustomerForm = () => {
   const [errors, setErrors] = useState({});
   const dispatch = useDispatch();
 
-  // If editing, fetch customer data
   useEffect(() => {
     if (id) {
       fetchCustomerById(id).then((data) => setForm(data));
@@ -50,7 +44,7 @@ const CustomerForm = () => {
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = validate();
     setErrors(errs);
@@ -58,14 +52,13 @@ const CustomerForm = () => {
     if (Object.keys(errs).length === 0) {
       try {
         if (id) {
-          // Update logic here
+          await dispatch(updateCustomer({ id, customerData: form })).unwrap();
         } else {
-          dispatch(createCustomer(form)).unwrap();
-          alert("Customer created!");
+          await dispatch(createCustomer(form)).unwrap();
         }
         navigate("/customers");
       } catch (error) {
-        alert(error || "Failed to create customer.");
+        alert(error?.message || "Failed to save customer.");
       }
     }
   };

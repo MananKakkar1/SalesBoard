@@ -31,7 +31,7 @@ const router = createBrowserRouter([
         element: <CustomerForm />,
       },
       {
-        path: "customers/:id",
+        path: "customers/:id/edit",
         element: <CustomerForm />,
       },
       {

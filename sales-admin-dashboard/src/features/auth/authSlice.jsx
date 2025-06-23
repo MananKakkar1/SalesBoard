@@ -37,6 +37,18 @@ export const createCustomer = createAsyncThunk(
   }
 );
 
+export const updateCustomer = createAsyncThunk(
+  'customers/updateCustomer',
+  async ({ id, customerData }, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`/api/customers/${id}`, customerData);
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.error || 'Failed to update customer');
+    }
+  }
+);
+
 const initialState = {
   token: localStorage.getItem("token") || null,
   user: null,
