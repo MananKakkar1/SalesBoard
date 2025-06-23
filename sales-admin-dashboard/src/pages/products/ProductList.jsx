@@ -42,7 +42,7 @@ const ProductList = () => {
         <div style={{ marginBottom: 16 }}>
           <InputField
             id="search"
-            placeholder="Search by name or SKU"
+            placeholder="Search by name"
             fullWidth
             value={search}
             onChange={handleSearchChange}
@@ -53,9 +53,8 @@ const ProductList = () => {
             <tr>
               <th style={{ textAlign: "left", padding: "8px" }}>ID</th>
               <th style={{ textAlign: "left", padding: "8px" }}>Name</th>
-              <th style={{ textAlign: "left", padding: "8px" }}>SKU</th>
               <th style={{ textAlign: "left", padding: "8px" }}>Price</th>
-              <th style={{ textAlign: "left", padding: "8px" }}>Description</th>
+              <th style={{ textAlign: "left", padding: "8px" }}>Stock</th>
               <th style={{ textAlign: "left", padding: "8px" }}>Actions</th>
             </tr>
           </thead>
@@ -71,9 +70,8 @@ const ProductList = () => {
                 <tr key={product.id}>
                   <td style={{ padding: "8px" }}>{product.id}</td>
                   <td style={{ padding: "8px" }}>{product.name}</td>
-                  <td style={{ padding: "8px" }}>{product.sku}</td>
                   <td style={{ padding: "8px" }}>{product.price}</td>
-                  <td style={{ padding: "8px" }}>{product.description}</td>
+                  <td style={{ padding: "8px" }}>{product.stock}</td>
                   <td style={{ padding: "8px" }}>
                     <Button
                       color="primary"
