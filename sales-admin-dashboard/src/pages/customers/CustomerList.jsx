@@ -4,13 +4,18 @@ import Button from "../../components/common/Button";
 import InputField from "../../components/common/InputField";
 import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
-import { fetchCustomers, deleteCustomer } from "../../features/auth/authSlice";
+import {
+  fetchCustomers,
+  deleteCustomer,
+  searchCustomers,
+} from "../../features/auth/authSlice";
 
 const CustomerList = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   const handleNewCustomer = () => {
     navigate("/customers/new");
@@ -24,11 +29,33 @@ const CustomerList = () => {
     setLoading(true);
     try {
       await dispatch(deleteCustomer(id)).unwrap();
-      // Refetch customers after delete
-      const data = await dispatch(fetchCustomers()).unwrap();
-      setCustomers(data);
+      if (search) {
+        const data = await dispatch(searchCustomers(search)).unwrap();
+        setCustomers(data);
+      } else {
+        const data = await dispatch(fetchCustomers()).unwrap();
+        setCustomers(data);
+      }
     } catch (error) {
       console.error("Failed to delete customer", error);
+    }
+    setLoading(false);
+  };
+
+  const handleSearchChange = async (e) => {
+    const value = e.target.value;
+    setSearch(value);
+    setLoading(true);
+    try {
+      if (value) {
+        const data = await dispatch(searchCustomers(value)).unwrap();
+        setCustomers(data);
+      } else {
+        const data = await dispatch(fetchCustomers()).unwrap();
+        setCustomers(data);
+      }
+    } catch (error) {
+      setCustomers([]);
     }
     setLoading(false);
   };
@@ -40,7 +67,7 @@ const CustomerList = () => {
         const data = await dispatch(fetchCustomers()).unwrap();
         setCustomers(data);
       } catch (error) {
-        console.error("Failed to fetch customers");
+        setCustomers([]);
       }
       setLoading(false);
     };
@@ -61,6 +88,8 @@ const CustomerList = () => {
             id="search"
             placeholder="Search by name or email"
             fullWidth
+            value={search}
+            onChange={handleSearchChange}
           />
         </div>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>

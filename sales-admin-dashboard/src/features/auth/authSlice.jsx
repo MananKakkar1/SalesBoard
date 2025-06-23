@@ -73,6 +73,18 @@ export const deleteCustomer = createAsyncThunk(
   }
 )
 
+export const searchCustomers = createAsyncThunk(
+  'customers/searchCustomers',
+  async (query, { rejectWithValue }) => {
+    try {
+      const response = await api.get(`/api/customers/search?q=${encodeURIComponent(query)}`);
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.error || 'Failed to search customers');
+    }
+  }
+);
+
 const initialState = {
   token: localStorage.getItem("token") || null,
   user: null,

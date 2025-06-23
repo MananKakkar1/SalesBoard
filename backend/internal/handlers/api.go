@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi"
@@ -176,6 +177,38 @@ func deleteCustomerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func searchCustomersHandler(w http.ResponseWriter, r *http.Request) {
+    query := strings.TrimSpace(r.URL.Query().Get("q"))
+    var rows *sql.Rows
+    var err error
+    if query != "" {
+        likeQuery := strings.ToLower(query) + "%"
+        rows, err = tools.DB.Query(
+            "SELECT id, name, email, phone, address FROM customers WHERE LOWER(name) LIKE ? OR LOWER(email) LIKE ?",
+            likeQuery, likeQuery,
+        )
+    } else {
+        rows, err = tools.DB.Query("SELECT id, name, email, phone, address FROM customers")
+    }
+    if err != nil {
+        tools.HandleInternalServerError(w, err)
+        return
+    }
+    defer rows.Close()
+
+    var customers []models.Customer
+    for rows.Next() {
+        var c models.Customer
+        if err := rows.Scan(&c.ID, &c.Name, &c.Email, &c.Phone, &c.Address); err != nil {
+            tools.HandleInternalServerError(w, err)
+            return
+        }
+        customers = append(customers, c)
+    }
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(customers)
+}
+
 // Handler configures the HTTP router with CORS, middleware, and API endpoints.
 func Handler(r *chi.Mux) {
 	r.Use(cors.Handler(cors.Options{
@@ -194,5 +227,6 @@ func Handler(r *chi.Mux) {
 	r.Get("/api/customers/{id}", getCustomerByIdHandler)
 	r.Put("/api/customers/{id}", updateCustomerDataHandler)
 	r.Delete("/api/customers/{id}/delete", deleteCustomerHandler)
+	r.Get("/api/customers/search", searchCustomersHandler)
 }
 
