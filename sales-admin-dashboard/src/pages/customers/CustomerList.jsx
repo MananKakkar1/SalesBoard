@@ -81,13 +81,7 @@ const CustomerList = () => {
                   Loading...
                 </td>
               </tr>
-            ) : customers.length === 0 ? (
-              <tr>
-                <td colSpan={6} style={{ padding: "8px", textAlign: "center" }}>
-                  No customers found.
-                </td>
-              </tr>
-            ) : (
+            ) : !customers || customers.length === 0 ? null : (
               customers.map((customer) => (
                 <tr key={customer.id}>
                   <td style={{ padding: "8px" }}>{customer.id}</td>
