@@ -55,7 +55,7 @@ const Sidebar = () => {
       
       <NavList>
         <NavItem>
-          <StyledNavLink to="/" end>
+          <StyledNavLink to="/dashboard" end>
             Dashboard
           </StyledNavLink>
         </NavItem>

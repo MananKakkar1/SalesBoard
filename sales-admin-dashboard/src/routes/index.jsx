@@ -8,6 +8,7 @@ import ProductForm from "../pages/products/ProductForm";
 import OrderList from "../pages/orders/OrderList";
 import OrderForm from "../pages/orders/OrderForm";
 import ProtectedRoute from "./ProtectedRoute";
+import Dashboard from "../pages/dashboard/Dashboard";
 
 const router = createBrowserRouter([
   {
@@ -22,6 +23,10 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
+      {
+        path: "dashboard",
+        element: <Dashboard />,
+      },
       {
         path: "customers",
         element: <CustomerList />,
