@@ -216,14 +216,14 @@ func CreateProductHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if product.Name == "" || product.Description == "" || product.Price == 0 || product.Stock == 0 {
+    if product.Name == "" || product.Price == 0 || product.Stock == 0 {
         tools.HandleBadRequest(w, errors.New("all fields are required"))
         return
     }
 
     _, err := tools.DB.Exec(
-        "INSERT INTO products (name, price, stock, description) VALUES (?, ?, ?, ?)",
-        product.Name, product.Price, product.Stock, product.Description,
+        "INSERT INTO products (name, price, stock) VALUES (?, ?, ?)",
+        product.Name, product.Price, product.Stock,
     )
     if err != nil {
         tools.HandleInternalServerError(w, err)
@@ -232,7 +232,7 @@ func CreateProductHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getProductsHandler(w http.ResponseWriter, r *http.Request) {
-    rows, err := tools.DB.Query("SELECT productId, name, price, stock, description FROM products")
+    rows, err := tools.DB.Query("SELECT id, name, price, stock FROM products")
     if err != nil {
         tools.HandleInternalServerError(w, err)
         return
@@ -242,7 +242,7 @@ func getProductsHandler(w http.ResponseWriter, r *http.Request) {
     var products []models.Product
     for rows.Next() {
         var p models.Product
-        if err := rows.Scan(&p.ID, &p.Name, &p.Price, &p.Stock, &p.Description); err != nil {
+        if err := rows.Scan(&p.ID, &p.Name, &p.Price, &p.Stock); err != nil {
             tools.HandleInternalServerError(w, err)
             return
         }
@@ -257,9 +257,9 @@ func getProductByIdHandler(w http.ResponseWriter, r *http.Request) {
     id := chi.URLParam(r, "id")
     var p models.Product
     err := tools.DB.QueryRow(
-        "SELECT productId, name, price, stock, description FROM products WHERE productId = ?",
+        "SELECT id, name, price, stock FROM products WHERE id = ?",
         id,
-    ).Scan(&p.ID, &p.Name, &p.Price, &p.Stock, &p.Description)
+    ).Scan(&p.ID, &p.Name, &p.Price, &p.Stock)
     if err != nil {
         if err == sql.ErrNoRows {
             http.Error(w, "Product not found", http.StatusNotFound)
@@ -279,13 +279,13 @@ func updateProductHandler(w http.ResponseWriter, r *http.Request) {
         tools.HandleBadRequest(w, errors.New("invalid request"))
         return
     }
-    if p.Name == "" || p.Description == "" || p.Price == 0 || p.Stock == 0 {
+    if p.Name == "" || p.Price <= 0 || p.Stock <= 0 {
         tools.HandleBadRequest(w, errors.New("all fields are required"))
         return
     }
     _, err := tools.DB.Exec(
-        "UPDATE products SET name=?, price=?, stock=?, description=? WHERE productId=?",
-        p.Name, p.Price, p.Stock, p.Description, id,
+        "UPDATE products SET name=?, price=?, stock=? WHERE id=?",
+        p.Name, p.Price, p.Stock, id,
     )
     if err != nil {
         tools.HandleInternalServerError(w, err)
@@ -296,7 +296,7 @@ func updateProductHandler(w http.ResponseWriter, r *http.Request) {
 
 func deleteProductHandler(w http.ResponseWriter, r *http.Request) {
     id := chi.URLParam(r, "id")
-    _, err := tools.DB.Exec("DELETE FROM products WHERE productId = ?", id)
+    _, err := tools.DB.Exec("DELETE FROM products WHERE id = ?", id)
     if err != nil {
         tools.HandleInternalServerError(w, err)
         return
@@ -310,11 +310,11 @@ func searchProductsHandler(w http.ResponseWriter, r *http.Request) {
     if query != "" {
         likeQuery := strings.ToLower(query) + "%"
         rows, err = tools.DB.Query(
-            "SELECT productId, name, price, stock, description FROM products WHERE LOWER(name) LIKE ?",
+            "SELECT id, name, price, stock FROM products WHERE LOWER(name) LIKE ?",
             likeQuery,
         )
     } else {
-        rows, err = tools.DB.Query("SELECT productId, name, price, stock, description FROM products")
+        rows, err = tools.DB.Query("SELECT id, name, price, stock FROM products")
     }
     if err != nil {
         tools.HandleInternalServerError(w, err)
@@ -325,7 +325,7 @@ func searchProductsHandler(w http.ResponseWriter, r *http.Request) {
     var products []models.Product
     for rows.Next() {
         var p models.Product
-        if err := rows.Scan(&p.ID, &p.Name, &p.Price, &p.Stock, &p.Description); err != nil {
+        if err := rows.Scan(&p.ID, &p.Name, &p.Price, &p.Stock); err != nil {
             tools.HandleInternalServerError(w, err)
             return
         }

@@ -3,9 +3,16 @@ import { useNavigate } from "react-router-dom";
 import Card, { CardHeader, CardContent } from "../../components/common/Card";
 import Button from "../../components/common/Button";
 import InputField from "../../components/common/InputField";
+import { useDispatch } from "react-redux";
+import {
+  fetchProducts,
+  deleteProduct,
+  searchProducts,
+} from "../../features/auth/authSlice";
 
 const ProductList = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -19,16 +26,53 @@ const ProductList = () => {
   };
 
   const handleDeleteProduct = async (id) => {
-    console.log("Delete product with ID:", id);
+    setLoading(true);
+    try {
+      await dispatch(deleteProduct(id)).unwrap();
+      if (search) {
+        const data = await dispatch(searchProducts(search)).unwrap();
+        setProducts(data);
+      } else {
+        const data = await dispatch(fetchProducts()).unwrap();
+        setProducts(data);
+      }
+    } catch (error) {
+      console.error("Failed to delete product", error);
+    }
+    setLoading(false);
   };
 
   const handleSearchChange = async (e) => {
-    console.log("Search value:", e.target.value);
+    const value = e.target.value;
+    setSearch(value);
+    setLoading(true);
+    try {
+      if (value) {
+        const data = await dispatch(searchProducts(value)).unwrap();
+        setProducts(data);
+      } else {
+        const data = await dispatch(fetchProducts()).unwrap();
+        setProducts(data);
+      }
+    } catch (error) {
+      setProducts([]);
+    }
+    setLoading(false);
   };
 
   useEffect(() => {
-    console.log("Fetching products...");
-  }, []);
+    const getProducts = async () => {
+      setLoading(true);
+      try {
+        const data = await dispatch(fetchProducts()).unwrap();
+        setProducts(data);
+      } catch (error) {
+        setProducts([]);
+      }
+      setLoading(false);
+    };
+    getProducts();
+  }, [dispatch]);
 
   return (
     <Card>

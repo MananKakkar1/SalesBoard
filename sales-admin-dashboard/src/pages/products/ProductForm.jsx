@@ -3,37 +3,47 @@ import { useParams, useNavigate } from "react-router-dom";
 import Card, { CardHeader, CardContent } from "../../components/common/Card";
 import Button from "../../components/common/Button";
 import InputField from "../../components/common/InputField";
+import { useDispatch } from "react-redux";
+import {
+  createProduct,
+  updateProduct,
+  fetchProducts,
+} from "../../features/auth/authSlice";
 
-const fetchProductById = async (id) => {
-  console.log("Fetching product with ID:", id);
+const fetchProductById = async (id, dispatch) => {
+  // Use fetchProducts or a dedicated fetchProductById thunk if you have one
+  // For now, fetch all and find by id (replace with a real API call in production)
+  const products = await dispatch(fetchProducts()).unwrap();
+  return products.find((p) => String(p.id) === String(id));
 };
 
 const initialState = {
   name: "",
-  sku: "",
   price: "",
+  stock: "",
   description: "",
 };
 
 const ProductForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  // const dispatch = useDispatch();
+  const dispatch = useDispatch();
   const [form, setForm] = useState(initialState);
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (id) {
-      fetchProductById(id).then((data) => setForm(data));
+      fetchProductById(id, dispatch).then((data) => {
+        if (data) setForm(data);
+      });
     }
-  }, [id]);
+  }, [id, dispatch]);
 
   const validate = () => {
     const errs = {};
     if (!form.name) errs.name = "Name is required";
-    if (!form.sku) errs.sku = "SKU is required";
     if (!form.price) errs.price = "Price is required";
-    if (!form.description) errs.description = "Description is required";
+    if (!form.stock) errs.stock = "Stock is required";
     return errs;
   };
 
@@ -41,7 +51,27 @@ const ProductForm = () => {
     setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
-    console.log("Form submitted with data:", form);
+    e.preventDefault();
+    const errs = validate();
+    setErrors(errs);
+
+    if (Object.keys(errs).length === 0) {
+      try {
+        const payload = {
+          ...form,
+          price: Number(form.price),
+          stock: Number(form.stock),
+        };
+        if (id) {
+          await dispatch(updateProduct({ id, productData: payload })).unwrap();
+        } else {
+          await dispatch(createProduct(payload)).unwrap();
+        }
+        navigate("/products");
+      } catch (error) {
+        alert(error?.message || "Failed to save product.");
+      }
+    }
   };
 
   return (
@@ -75,25 +105,14 @@ const ProductForm = () => {
           />
           <InputField
             label="Stock"
-            name="sku"
-            value={form.sku}
+            name="stock"
+            value={form.stock}
             onChange={handleChange}
             error={!!errors.stock}
             helperText={errors.stock}
             fullWidth
             required
-            type="text"
-          />
-          <InputField
-            label="Description"
-            name="description"
-            value={form.description}
-            onChange={handleChange}
-            error={!!errors.description}
-            helperText={errors.description}
-            fullWidth
-            required
-            type="text"
+            type="number"
           />
           <div style={{ marginTop: 16 }}>
             <Button color="primary" type="submit">
