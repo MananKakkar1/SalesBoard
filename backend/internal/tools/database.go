@@ -2,9 +2,10 @@
 package tools
 
 import (
-	"database/sql"
-	_ "github.com/mattn/go-sqlite3" 
-	log "github.com/sirupsen/logrus"
+    "database/sql"
+    _ "github.com/mattn/go-sqlite3"
+    log "github.com/sirupsen/logrus"
+    "fmt"
 )
 
 // DB is the global database connection used throughout the application.
@@ -68,5 +69,35 @@ func InsertDummyUser() {
         "dummyuser", "dummykey", 1)
     if err != nil {
         log.Fatalf("Failed to insert dummy user: %v", err)
+    }
+}
+
+func InsertDummyProducts() {
+    for i := 1; i <= 20; i++ {
+        _, err := DB.Exec(
+            `INSERT OR IGNORE INTO products (name, price, stock, description) VALUES (?, ?, ?, ?)`,
+            fmt.Sprintf("Product %d", i),
+            float64(10*i),
+            100+i,
+            fmt.Sprintf("Sample description for product %d", i),
+        )
+        if err != nil {
+            log.Fatalf("Failed to insert dummy product %d: %v", i, err)
+        }
+    }
+}
+
+func InsertDummyCustomers() {
+    for i := 1; i <= 20; i++ {
+        _, err := DB.Exec(
+            `INSERT OR IGNORE INTO customers (name, email, phone, address) VALUES (?, ?, ?, ?)`,
+            fmt.Sprintf("Customer %d", i),
+            fmt.Sprintf("customer%d@example.com", i),
+            fmt.Sprintf("555-010%02d", i),
+            fmt.Sprintf("Address %d, City", i),
+        )
+        if err != nil {
+            log.Fatalf("Failed to insert dummy customer %d: %v", i, err)
+        }
     }
 }

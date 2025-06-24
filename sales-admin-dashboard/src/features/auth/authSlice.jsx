@@ -26,121 +26,149 @@ export const login = createAsyncThunk(
 );
 
 export const createCustomer = createAsyncThunk(
-  'customers/createCustomer',
+  "customers/createCustomer",
   async (customerData, { rejectWithValue }) => {
     try {
-      const response = await api.post('/api/create-customer', customerData);
+      const response = await api.post("/api/create-customer", customerData);
       return response.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to create customer');
+      return rejectWithValue(
+        err.response?.data?.error || "Failed to create customer"
+      );
     }
   }
 );
 
 export const updateCustomer = createAsyncThunk(
-  'customers/updateCustomer',
+  "customers/updateCustomer",
   async ({ id, customerData }, { rejectWithValue }) => {
     try {
       const response = await api.put(`/api/customers/${id}`, customerData);
       return response.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to update customer');
+      return rejectWithValue(
+        err.response?.data?.error || "Failed to update customer"
+      );
     }
   }
 );
 
 export const fetchCustomers = createAsyncThunk(
-  'customers/fetchCustomers',
-  async (_, { rejectWithValue }) => {
+  "customers/fetchCustomers",
+  async ({ page = 1, limit = 20 } = {}, { rejectWithValue }) => {
     try {
-      const response = await api.get('/api/customers');
-      return response.data; // Return the list of customers
+      const response = await api.get(
+        `/api/customers?page=${page}&limit=${limit}`
+      );
+      return response.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to fetch customers');
+      return rejectWithValue(
+        err.response?.data?.error || "Failed to fetch customers"
+      );
     }
   }
 );
 
 export const deleteCustomer = createAsyncThunk(
-  'customers/deleteCustomer', 
+  "customers/deleteCustomer",
   async (id, { rejectWithValue }) => {
     try {
       await api.delete(`/api/customers/${id}/delete`);
       return id; // Return the ID of the deleted customer
     } catch (err) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to delete customer');
+      return rejectWithValue(
+        err.response?.data?.error || "Failed to delete customer"
+      );
     }
   }
-)
+);
 
 export const searchCustomers = createAsyncThunk(
-  'customers/searchCustomers',
+  "customers/searchCustomers",
   async (query, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/api/customers/search?q=${encodeURIComponent(query)}`);
+      const response = await api.get(
+        `/api/customers/search?q=${encodeURIComponent(query)}`
+      );
       return response.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to search customers');
+      return rejectWithValue(
+        err.response?.data?.error || "Failed to search customers"
+      );
     }
   }
 );
 
 export const createProduct = createAsyncThunk(
-  'products/createProduct',
+  "products/createProduct",
   async (productData, { rejectWithValue }) => {
     try {
-      const response = await api.post('/api/products', productData);
+      const response = await api.post("/api/products", productData);
       return response.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to create product');
+      return rejectWithValue(
+        err.response?.data?.error || "Failed to create product"
+      );
     }
   }
 );
 
 export const updateProduct = createAsyncThunk(
-  'products/updateProduct',
+  "products/updateProduct",
   async ({ id, productData }, { rejectWithValue }) => {
     try {
       const response = await api.put(`/api/products/${id}`, productData);
       return response.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to update product');
+      return rejectWithValue(
+        err.response?.data?.error || "Failed to update product"
+      );
     }
   }
 );
 
 export const fetchProducts = createAsyncThunk(
-  'products/fetchProducts',
-  async (_, { rejectWithValue }) => {
+  "products/fetchProducts",
+  async ({ page = 1, limit = 20 } = {}, { rejectWithValue }) => {
     try {
-      const response = await api.get('/api/products');
+      const response = await api.get(
+        `/api/products?page=${page}&limit=${limit}`
+      );
       return response.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to fetch products');
+      return rejectWithValue(
+        err.response?.data?.error || "Failed to fetch products"
+      );
     }
   }
 );
 
 export const deleteProduct = createAsyncThunk(
-  'products/deleteProduct',
+  "products/deleteProduct",
   async (id, { rejectWithValue }) => {
     try {
       await api.delete(`/api/products/${id}`);
       return id;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to delete product');
+      return rejectWithValue(
+        err.response?.data?.error || "Failed to delete product"
+      );
     }
   }
 );
 
 export const searchProducts = createAsyncThunk(
-  'products/searchProducts',
+  "products/searchProducts",
   async (query, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/api/products/search?q=${encodeURIComponent(query)}`);
+      const response = await api.get(
+        `/api/products/search?q=${encodeURIComponent(query)}`
+      );
       return response.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to search products');
+      return rejectWithValue(
+        err.response?.data?.error || "Failed to search products"
+      );
     }
   }
 );

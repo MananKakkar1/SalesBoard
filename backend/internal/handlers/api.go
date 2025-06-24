@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -106,7 +107,20 @@ func CreateCustomerHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getCustomersHandler(w http.ResponseWriter, r *http.Request) {
-    rows, err := tools.DB.Query("SELECT id, name, email, phone, address FROM customers")
+    pageStr := r.URL.Query().Get("page")
+    limitStr := r.URL.Query().Get("limit")
+
+    page := 1
+    limit := 20
+    if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+        page = p
+    }
+    if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
+        limit = l
+    }
+    offset := (page - 1) * limit
+
+    rows, err := tools.DB.Query("SELECT id, name, email, phone, address FROM customers LIMIT ? OFFSET ?", limit, offset)
     if err != nil {
         tools.HandleInternalServerError(w, err)
         return
@@ -232,7 +246,20 @@ func CreateProductHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getProductsHandler(w http.ResponseWriter, r *http.Request) {
-    rows, err := tools.DB.Query("SELECT id, name, price, stock FROM products")
+    pageStr := r.URL.Query().Get("page")
+    limitStr := r.URL.Query().Get("limit")
+
+    page := 1
+    limit := 20
+    if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+        page = p
+    }
+    if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
+        limit = l
+    }
+    offset := (page - 1) * limit
+
+    rows, err := tools.DB.Query("SELECT id, name, price, stock FROM products LIMIT ? OFFSET ?", limit, offset)
     if err != nil {
         tools.HandleInternalServerError(w, err)
         return

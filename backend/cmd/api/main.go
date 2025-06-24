@@ -26,6 +26,8 @@ func main() {
 
 	tools.InitDB("app.db")
 	tools.InsertDummyUser()
+	tools.InsertDummyProducts()
+	tools.InsertDummyCustomers()
 
 	r := chi.NewRouter()
 	handlers.Handler(r)

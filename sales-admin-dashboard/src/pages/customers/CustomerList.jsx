@@ -10,12 +10,16 @@ import {
   searchCustomers,
 } from "../../features/auth/authSlice";
 
+const DEFAULT_LIMIT = 20;
+
 const CustomerList = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(DEFAULT_LIMIT);
 
   const handleNewCustomer = () => {
     navigate("/customers/new");
@@ -29,13 +33,7 @@ const CustomerList = () => {
     setLoading(true);
     try {
       await dispatch(deleteCustomer(id)).unwrap();
-      if (search) {
-        const data = await dispatch(searchCustomers(search)).unwrap();
-        setCustomers(data);
-      } else {
-        const data = await dispatch(fetchCustomers()).unwrap();
-        setCustomers(data);
-      }
+      fetchPage();
     } catch (error) {
       console.error("Failed to delete customer", error);
     }
@@ -45,15 +43,40 @@ const CustomerList = () => {
   const handleSearchChange = async (e) => {
     const value = e.target.value;
     setSearch(value);
+    setPage(1);
+    fetchPage(1, limit, value);
+  };
+
+  const handlePageChange = (newPage) => setPage(newPage);
+  const handleLimitChange = (e) => {
+    setLimit(Number(e.target.value));
+    setPage(1);
+  };
+
+  const fetchPage = async (
+    pageNum = page,
+    pageLimit = limit,
+    searchValue = search
+  ) => {
     setLoading(true);
     try {
-      if (value) {
-        const data = await dispatch(searchCustomers(value)).unwrap();
-        setCustomers(data);
+      let data;
+      if (searchValue) {
+        data = await dispatch(
+          searchCustomers(`${searchValue}&page=${pageNum}&limit=${pageLimit}`)
+        ).unwrap();
       } else {
-        const data = await dispatch(fetchCustomers()).unwrap();
-        setCustomers(data);
+        data = await dispatch(
+          fetchCustomers({ page: pageNum, limit: pageLimit })
+        ).unwrap();
       }
+      // If no data and not on first page, go back one page
+      if (Array.isArray(data) && data.length === 0 && pageNum > 1) {
+        setPage(pageNum - 1);
+        setLoading(false);
+        return;
+      }
+      setCustomers(data);
     } catch (error) {
       setCustomers([]);
     }
@@ -61,18 +84,11 @@ const CustomerList = () => {
   };
 
   useEffect(() => {
-    const getCustomers = async () => {
-      setLoading(true);
-      try {
-        const data = await dispatch(fetchCustomers()).unwrap();
-        setCustomers(data);
-      } catch (error) {
-        setCustomers([]);
-      }
-      setLoading(false);
-    };
-    getCustomers();
-  }, [dispatch]);
+    fetchPage();
+    // eslint-disable-next-line
+  }, [dispatch, page, limit]);
+
+  const safeCustomers = customers || [];
 
   return (
     <Card>
@@ -92,6 +108,32 @@ const CustomerList = () => {
             onChange={handleSearchChange}
           />
         </div>
+        <div style={{ margin: "16px 0" }}>
+          <label>
+            Page Size:&nbsp;
+            <select value={limit} onChange={handleLimitChange}>
+              {[10, 20, 50, 100].map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Button
+            disabled={page === 1}
+            onClick={() => handlePageChange(page - 1)}
+            style={{ marginLeft: 16 }}
+          >
+            Previous
+          </Button>
+          <span style={{ margin: "0 8px" }}>Page {page}</span>
+          <Button
+            disabled={safeCustomers.length < limit}
+            onClick={() => handlePageChange(page + 1)}
+          >
+            Next
+          </Button>
+        </div>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr>
@@ -110,8 +152,8 @@ const CustomerList = () => {
                   Loading...
                 </td>
               </tr>
-            ) : !customers || customers.length === 0 ? null : (
-              customers.map((customer) => (
+            ) : !safeCustomers || safeCustomers.length === 0 ? null : (
+              safeCustomers.map((customer) => (
                 <tr key={customer.id}>
                   <td style={{ padding: "8px" }}>{customer.id}</td>
                   <td style={{ padding: "8px" }}>{customer.name}</td>
@@ -140,7 +182,6 @@ const CustomerList = () => {
             )}
           </tbody>
         </table>
-        {/* Pagination controls here */}
       </CardContent>
     </Card>
   );
