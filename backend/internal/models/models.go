@@ -19,16 +19,18 @@ type Product struct {
 }
 
 type Order struct {
-    OrderID    int `json:"orderId"`
-    CustomerID int `json:"customerId"`
-    OrderDate  string `json:"orderDate"`
+    OrderID     int         `json:"orderId"`
+    CustomerID  int         `json:"customerId"`
+    UserID      int         `json:"userId"`
+    ProductItems []OrderItem `json:"productItems"`
+    TotalPrice  float64     `json:"totalPrice"`
+    CreatedAt   string      `json:"createdAt"`
 }
 
 type OrderItem struct {
-    OrderItemID int `json:"orderItemId"`
-    OrderID     int `json:"orderId"`
-    ProductID   int `json:"productId"`
-    Quantity    int `json:"quantity"`
+    ProductID  int     `json:"productId"`
+    Quantity   int     `json:"quantity"`
+    SalePrice  float64 `json:"salePrice"`
 }
 
 type User struct {
