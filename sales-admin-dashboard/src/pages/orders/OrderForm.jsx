@@ -68,6 +68,20 @@ const OrderForm = () => {
     }
   };
 
+  const calculateTotalPrice = (productsArr) => {
+    let total = 0;
+    for (const product of productsArr) {
+      if (product.quantity && product.salePrice) {
+        total += Number(product.quantity) * Number(product.salePrice);
+      }
+    }
+    return total;
+  };
+
+  useEffect(() => {
+    setTotalPrice(calculateTotalPrice(products));
+  }, [products]);
+
   return (
     <div>
       <h1>New Order</h1>
