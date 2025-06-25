@@ -32,19 +32,75 @@ const OrderForm = () => {
     navigate(`/orders`);
   };
 
+  const handleSearchChange = async (e) => {
+    const value = e.target.value;
+    setCustomerQuery(value);
+    if (value) {
+      try {
+        const data = await dispatch(searchCustomers(value)).unwrap();
+        setCustomerOptions(data);
+      } catch (error) {
+        console.error("Failed to search customers", error);
+        setCustomerOptions([0]);
+      }
+    } else {
+      setCustomerOptions([]);
+    }
+  };
+
   return (
     <div>
       <h1>New Order</h1>
       <div>
         <h3 style={{ marginBottom: 4 }}>Select Customer</h3>
-        <InputField
-          id="search"
-          placeholder="Search Customers by Name or Email"
-          fullWidth={false}
-          value={customerQuery}
-          onChange={(e) => setCustomerQuery(e.target.value)}
-          style={{ width: 675 }}
-        />
+        <div style={{ position: "relative" }}>
+          <InputField
+            id="search"
+            placeholder="Search Customers by Name or Email"
+            fullWidth={false}
+            value={customerQuery}
+            onChange={handleSearchChange}
+            style={{ width: 675 }}
+          />
+          {customerQuery &&
+            Array.isArray(customerOptions) &&
+            customerOptions.length > 0 && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: 42,
+                  left: 0,
+                  width: "100%",
+                  background: "#fff",
+                  border: "1px solid #ccc",
+                  zIndex: 10,
+                  maxHeight: 200,
+                  overflowY: "auto",
+                }}
+              >
+                {customerOptions.map((option, idx) => (
+                  <div
+                    key={option.id || idx}
+                    style={{
+                      padding: "8px",
+                      cursor: "pointer",
+                      borderBottom: "1px solid #eee",
+                    }}
+                    onMouseDown={() => {
+                      setSelectedCustomer(option);
+                      setCustomerQuery(option.name || option.email || "");
+                      setCustomerOptions([]);
+                    }}
+                  >
+                    {option.name}{" "}
+                    {option.email && (
+                      <span style={{ color: "#888" }}>({option.email})</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+        </div>
       </div>
       <div>
         <h3 style={{ marginBottom: 4 }}>Products:</h3>

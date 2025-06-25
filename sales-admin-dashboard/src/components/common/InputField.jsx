@@ -67,6 +67,7 @@ const InputField = ({
         error={!!error}
         aria-invalid={!!error}
         {...props}
+        value={props.value ?? ""} // Ensure value is never null
       />
       {(error && helperText) && <ErrorText>{helperText}</ErrorText>}
     </InputContainer>
