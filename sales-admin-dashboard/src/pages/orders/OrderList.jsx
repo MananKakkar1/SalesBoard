@@ -1,29 +1,23 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import Card, { CardHeader, CardContent } from "../../components/common/Card";
 import Button from "../../components/common/Button";
 import InputField from "../../components/common/InputField";
-import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
 const OrderList = () => {
-  const dispatch = useDispatch();
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-
   const navigate = useNavigate();
+  const [search, setSearch] = useState("");
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(false);
 
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+
+  const handleSearchChange = (e) => setSearch(e.target.value);
+  const handlePageChange = (newPage) => setPage(newPage);
+  const handleLimitChange = (e) => setLimit(Number(e.target.value));
   const handleNewOrder = () => {
-    console.log("Navigate to new order form");
     navigate("/orders/new");
-  }
-
-  const handleDeleteOrder = async (id) => {
-    console.log("Deleting order with ID:", id);
-  };
-
-  const handleSearchChange = async (e) => {
-    console.log("Search input changed:", e.target.value);
   };
 
   return (
@@ -31,7 +25,7 @@ const OrderList = () => {
       <CardHeader>
         <h2>Sales Orders</h2>
         <Button color="primary" onClick={handleNewOrder}>
-          New Order
+          Add New Order
         </Button>
       </CardHeader>
       <CardContent>
@@ -47,12 +41,18 @@ const OrderList = () => {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr>
-              <th style={{ textAlign: "left", padding: "8px" }}>Order ID</th>
-              <th style={{ textAlign: "left", padding: "8px" }}>Customer</th>
-              <th style={{ textAlign: "left", padding: "8px" }}>Email</th>
-              <th style={{ textAlign: "left", padding: "8px" }}>Date</th>
-              <th style={{ textAlign: "left", padding: "8px" }}>Total</th>
-              <th style={{ textAlign: "left", padding: "8px" }}>Actions</th>
+              <th style={{ textAlign: "left", padding: "8px 16px" }}>
+                Order ID
+              </th>
+              <th style={{ textAlign: "left", padding: "8px 16px" }}>
+                Customer
+              </th>
+              <th style={{ textAlign: "left", padding: "8px 16px" }}>Email</th>
+              <th style={{ textAlign: "left", padding: "8px 16px" }}>Date</th>
+              <th style={{ textAlign: "left", padding: "8px 16px" }}>Total</th>
+              <th style={{ textAlign: "left", padding: "8px 16px" }}>
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -62,20 +62,28 @@ const OrderList = () => {
                   Loading...
                 </td>
               </tr>
-            ) : !orders || orders.length === 0 ? null : (
+            ) : orders.length === 0 ? (
+              <tr>
+                <td colSpan={6} style={{ padding: "8px", textAlign: "center" }}>
+                  No orders found.
+                </td>
+              </tr>
+            ) : (
               orders.map((order) => (
                 <tr key={order.orderId}>
-                  <td style={{ padding: "8px" }}>{order.orderId}</td>
-                  <td style={{ padding: "8px" }}>{order.customerName}</td>
-                  <td style={{ padding: "8px" }}>{order.customerEmail}</td>
-                  <td style={{ padding: "8px" }}>{order.createdAt}</td>
-                  <td style={{ padding: "8px" }}>{order.totalPrice}</td>
-                  <td style={{ padding: "8px" }}>
+                  <td style={{ padding: "8px 16px" }}>{order.orderId}</td>
+                  <td style={{ padding: "8px 16px" }}>{order.customerName}</td>
+                  <td style={{ padding: "8px 16px" }}>{order.customerEmail}</td>
+                  <td style={{ padding: "8px 16px" }}>{order.createdAt}</td>
+                  <td style={{ padding: "8px 16px" }}>{order.totalPrice}</td>
+                  <td style={{ padding: "8px 16px" }}>
+                    <Button color="primary" size="small">
+                      View
+                    </Button>
                     <Button
                       color="secondary"
                       size="small"
                       style={{ marginLeft: 8 }}
-                      onClick={() => handleDeleteOrder(order.orderId)}
                     >
                       Delete
                     </Button>
@@ -85,7 +93,27 @@ const OrderList = () => {
             )}
           </tbody>
         </table>
-        {/* Pagination controls here */}
+        <div style={{ marginTop: 16 }}>
+          <label>
+            Page Size:&nbsp;
+            <select value={limit} onChange={handleLimitChange}>
+              {[10, 20, 50, 100].map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Button
+            disabled={page === 1}
+            onClick={() => handlePageChange(page - 1)}
+            style={{ marginLeft: 16 }}
+          >
+            Previous
+          </Button>
+          <span style={{ margin: "0 8px" }}>Page {page}</span>
+          <Button onClick={() => handlePageChange(page + 1)}>Next</Button>
+        </div>
       </CardContent>
     </Card>
   );
