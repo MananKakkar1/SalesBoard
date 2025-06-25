@@ -13,6 +13,7 @@ const OrderForm = () => {
   const [customerQuery, setCustomerQuery] = useState("");
   const [productsQuery, setProductsQuery] = useState("");
   const [customerOptions, setCustomerOptions] = useState([]);
+  const [productOptions, setProductOptions] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
 
   const [products, setProducts] = useState(() => {
@@ -32,7 +33,7 @@ const OrderForm = () => {
     navigate(`/orders`);
   };
 
-  const handleSearchChange = async (e) => {
+  const handleCustomerSearchChange = async (e) => {
     const value = e.target.value;
     setCustomerQuery(value);
     if (value) {
@@ -48,6 +49,25 @@ const OrderForm = () => {
     }
   };
 
+  const handleProductSearchChange = async (e, idx) => {
+    const updated = [...products];
+    updated[idx].product = e.target.value;
+    setProducts(updated);
+    const value = e.target.value;
+    setProductsQuery(value);
+    if (value) {
+      try {
+        const data = await dispatch(searchProducts(value)).unwrap();
+        setProductOptions(data);
+      } catch (error) {
+        console.error("Failed to search customers", error);
+        setProductOptions([0]);
+      }
+    } else {
+      setProductOptions([]);
+    }
+  };
+
   return (
     <div>
       <h1>New Order</h1>
@@ -59,7 +79,7 @@ const OrderForm = () => {
             placeholder="Search Customers by Name or Email"
             fullWidth={false}
             value={customerQuery}
-            onChange={handleSearchChange}
+            onChange={handleCustomerSearchChange}
             style={{ width: 675 }}
           />
           {customerQuery &&
@@ -105,18 +125,74 @@ const OrderForm = () => {
       <div>
         <h3 style={{ marginBottom: 4 }}>Products:</h3>
         {products.map((product, idx) => (
-          <div key={idx} style={{ display: "flex", gap: 16, marginBottom: 8 }}>
-            <InputField
-              id={`productSearch-${idx}`}
-              placeholder="Search Products by Name"
-              value={product.product}
-              onChange={(e) => {
-                const updated = [...products];
-                updated[idx].product = e.target.value;
-                setProducts(updated);
-              }}
-              style={{ width: 250 }}
-            />
+          <div
+            key={idx}
+            style={{
+              display: "flex",
+              gap: 16,
+              marginBottom: 8,
+              position: "relative",
+            }}
+          >
+            <div style={{ position: "relative" }}>
+              <InputField
+                id={`productSearch-${idx}`}
+                placeholder="Search Products by Name"
+                value={product.product}
+                onChange={(e) => handleProductSearchChange(e, idx)}
+                style={{ width: 250 }}
+                autoComplete="off"
+              />
+              {product.product &&
+                Array.isArray(productOptions) &&
+                productOptions.length > 0 && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 42,
+                      left: 0,
+                      width: "100%",
+                      background: "#fff",
+                      border: "1px solid #ccc",
+                      zIndex: 10,
+                      maxHeight: 200,
+                      overflowY: "auto",
+                    }}
+                  >
+                    {productOptions.map((option, pidx) => (
+                      <div
+                        key={option.id || pidx}
+                        style={{
+                          padding: "8px",
+                          cursor: "pointer",
+                          borderBottom: "1px solid #eee",
+                        }}
+                        onMouseDown={() => {
+                          const updated = [...products];
+                          updated[idx] = {
+                            ...updated[idx],
+                            product: option.name,
+                            productId: option.id,
+                            salePrice: option.price,
+                            stock: option.stock,
+                          };
+                          setProducts(updated);
+                          setProductOptions([]);
+                        }}
+                      >
+                        {option.name}{" "}
+                        <span style={{ color: "#888" }}>
+                          ($
+                          {option.price?.toFixed
+                            ? option.price.toFixed(2)
+                            : option.price}
+                          )
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+            </div>
             <InputField
               id={`quantity-${idx}`}
               placeholder="Quantity"
