@@ -49,15 +49,27 @@ func InitDB(filepath string) {
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     price REAL NOT NULL,
-    stock INTEGER NOT NULL,
-    description TEXT
+    stock INTEGER NOT NULL
     );`
 
     _, err = DB.Exec(createProductsTable)
     if err != nil {
         log.Fatalf("Failed to create products table: %v", err)
     }
-    // Other tables will go below
+    
+    createOrdersTable := `
+    CREATE TABLE IF NOT EXISTS orders (
+    orderId INTEGER PRIMARY KEY AUTOINCREMENT,
+    customerId INTEGER NOT NULL,
+    userId INTEGER NOT NULL,
+    totalPrice REAL NOT NULL,
+    createdAt TEXT NOT NULL
+    );`
+
+    _, err = DB.Exec(createOrdersTable)
+    if err != nil {
+        log.Fatalf("Failed to create orders table: %v", err)
+    }
 }
 
 // InsertDummyUser inserts a default user into the users table if not already present for sample login.
