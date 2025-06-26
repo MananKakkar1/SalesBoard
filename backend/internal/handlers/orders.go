@@ -89,32 +89,41 @@ func getOrdersHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getOrderByIDHandler(w http.ResponseWriter, r *http.Request) {
-    orderID := r.URL.Query().Get("orderId")
-    if orderID == "" {
-        tools.HandleBadRequest(w, errors.New("orderId is required"))
-        return
-    }
-
-    row := tools.DB.QueryRow(`
-        SELECT o.orderId, o.customerId, o.userId, o.totalPrice, o.createdAt,
-               oi.productId, oi.quantity, oi.salePrice
-        FROM orders o
-        JOIN order_items oi ON o.orderId = oi.orderId
-        WHERE o.orderId = ?`, orderID)
+    orderID := chi.URLParam(r, "id")
 
     var order models.Order
-    var item models.OrderItem
-    if err := row.Scan(&order.OrderID, &order.CustomerID, &order.UserID,
-        &order.TotalPrice, &order.CreatedAt, &item.ProductID,
-        &item.Quantity, &item.SalePrice); err != nil {
+    err := tools.DB.QueryRow(
+        `SELECT orderId, customerId, userId, totalPrice, createdAt FROM orders WHERE orderId = ?`,
+        orderID,
+    ).Scan(&order.OrderID, &order.CustomerID, &order.UserID, &order.TotalPrice, &order.CreatedAt)
+    if err != nil {
         if err == sql.ErrNoRows {
-            tools.HandleBadRequest(w, errors.New("order not found"))
+            http.Error(w, "Order not found", http.StatusNotFound)
             return
         }
         tools.HandleInternalServerError(w, err)
         return
     }
-    order.ProductItems = append(order.ProductItems, item)
+    rows, err := tools.DB.Query(
+        `SELECT productId, quantity, salePrice FROM order_items WHERE orderId = ?`,
+        orderID,
+    )
+    if err != nil {
+        tools.HandleInternalServerError(w, err)
+        return
+    }
+    defer rows.Close()
+
+    var items []models.OrderItem
+    for rows.Next() {
+        var item models.OrderItem
+        if err := rows.Scan(&item.ProductID, &item.Quantity, &item.SalePrice); err != nil {
+            tools.HandleInternalServerError(w, err)
+            return
+        }
+        items = append(items, item)
+    }
+    order.ProductItems = items
 
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(order)

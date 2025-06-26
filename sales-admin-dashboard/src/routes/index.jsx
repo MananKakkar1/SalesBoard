@@ -7,6 +7,7 @@ import ProductList from "../pages/products/ProductList";
 import ProductForm from "../pages/products/ProductForm";
 import OrderList from "../pages/orders/OrderList";
 import OrderForm from "../pages/orders/OrderForm";
+import OrderDetail from "../pages/orders/OrderDetail";
 import ProtectedRoute from "./ProtectedRoute";
 import Dashboard from "../pages/dashboard/Dashboard";
 
@@ -99,7 +100,7 @@ const router = createBrowserRouter([
         path: "orders/:id",
         element: (
           <ProtectedRoute>
-            <OrderForm />
+            <OrderDetail />
           </ProtectedRoute>
         ),
       },

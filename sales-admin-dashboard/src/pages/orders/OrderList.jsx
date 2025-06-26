@@ -20,8 +20,8 @@ const OrderList = () => {
   const handleSearchChange = (e) => setSearch(e.target.value);
   const handlePageChange = (newPage) => setPage(newPage);
   const handleLimitChange = (e) => setLimit(Number(e.target.value));
-  const handleViewOrder = (e) => {
-    console.log("View order with ID:", e);
+  const handleViewOrder = (orderId) => {
+    navigate(`/orders/${orderId}`);
   };
   const handleDeleteOrder = async (orderId) => {
     try {
@@ -131,7 +131,7 @@ const OrderList = () => {
                     <Button
                       color="primary"
                       size="small"
-                      onClick={handleViewOrder}
+                      onClick={() => handleViewOrder(order.orderId)}
                     >
                       View
                     </Button>

@@ -35,15 +35,6 @@ const CustomerForm = () => {
     }
   }, [id]);
 
-  const validate = () => {
-    const errs = {};
-    if (!form.name) errs.name = "Name is required";
-    if (!form.email) errs.email = "Email is required";
-    if (!form.phone) errs.phone = "Phone is required";
-    if (!form.address) errs.address = "Address is required";
-    return errs;
-  };
-
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
