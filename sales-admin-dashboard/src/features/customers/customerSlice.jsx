@@ -41,7 +41,7 @@ export const deleteCustomer = createAsyncThunk(
   'customers/deleteCustomer', 
   async (id, { rejectWithValue }) => {
     try {
-      await api.delete(`/api/customers/${id}/delete`);
+      await api.delete(`/api/customers/${id}`);
       return id; 
     } catch (err) {
       return rejectWithValue(err.response?.data?.error || 'Failed to delete customer');

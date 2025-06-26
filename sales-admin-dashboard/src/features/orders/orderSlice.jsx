@@ -25,6 +25,30 @@ export const fetchOrders = createAsyncThunk(
   }
 );
 
+export const fetchOrderById = createAsyncThunk(
+  'orders/fetchOrderById',
+  async (orderId, { rejectWithValue }) => {
+    try {
+      const response = await api.get(`/api/orders/${orderId}`);
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.error || 'Failed to fetch order');
+    }
+  }
+);
+
+export const deleteOrder = createAsyncThunk(
+  'orders/deleteOrder',
+  async (orderId, { rejectWithValue }) => {
+    try {
+      await api.delete(`/api/orders/${orderId}`);
+      return orderId;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.error || 'Failed to delete order');
+    }
+  }
+);
+
 const orderSlice = createSlice({
   name: "orders",
   initialState: {

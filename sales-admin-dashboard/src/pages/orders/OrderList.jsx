@@ -3,7 +3,7 @@ import Card, { CardHeader, CardContent } from "../../components/common/Card";
 import Button from "../../components/common/Button";
 import InputField from "../../components/common/InputField";
 import { useNavigate } from "react-router-dom";
-import { fetchOrders } from "../../features/orders/orderSlice";
+import { deleteOrder, fetchOrders } from "../../features/orders/orderSlice";
 import { useDispatch } from "react-redux";
 
 const OrderList = () => {
@@ -23,8 +23,25 @@ const OrderList = () => {
   const handleViewOrder = (e) => {
     console.log("View order with ID:", e);
   };
-  const handleDeleteOrder = async (e) => {
-    console.log("Delete order with ID:", e);
+  const handleDeleteOrder = async (orderId) => {
+    try {
+      await dispatch(deleteOrder(orderId)).unwrap();
+      const data = await dispatch(fetchOrders()).unwrap();
+
+      const ordersArray = Array.isArray(data) ? data : data.orders || [];
+
+      const uniqueOrdersMap = new Map();
+      ordersArray.forEach((order) => {
+        if (!uniqueOrdersMap.has(order.orderId)) {
+          uniqueOrdersMap.set(order.orderId, order);
+        }
+      });
+
+      const uniqueOrders = Array.from(uniqueOrdersMap.values());
+      setOrders(uniqueOrders);
+    } catch (error) {
+      console.error("Failed to delete or re-fetch orders:", error);
+    }
   };
   const handleNewOrder = () => {
     navigate("/orders/new");
@@ -122,7 +139,7 @@ const OrderList = () => {
                       color="secondary"
                       size="small"
                       style={{ marginLeft: 8 }}
-                      onClick={handleDeleteOrder}
+                      onClick={() => handleDeleteOrder(order.orderId)}
                     >
                       Delete
                     </Button>
