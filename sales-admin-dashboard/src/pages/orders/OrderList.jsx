@@ -68,7 +68,7 @@ const OrderList = () => {
         <div style={{ marginBottom: 16 }}>
           <InputField
             id="search"
-            placeholder="Search by customer, order ID, or date"
+            placeholder="Search by customer name/email, order ID, or date"
             fullWidth
             value={search}
             onChange={handleSearchChange}
