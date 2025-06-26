@@ -1,8 +1,10 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Card, { CardHeader, CardContent } from "../../components/common/Card";
 import Button from "../../components/common/Button";
 import InputField from "../../components/common/InputField";
 import { useNavigate } from "react-router-dom";
+import { fetchOrders } from "../../features/auth/authSlice";
+import { useDispatch } from "react-redux";
 
 const OrderList = () => {
   const navigate = useNavigate();
@@ -13,12 +15,43 @@ const OrderList = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
 
+  const dispatch = useDispatch();
+
   const handleSearchChange = (e) => setSearch(e.target.value);
   const handlePageChange = (newPage) => setPage(newPage);
   const handleLimitChange = (e) => setLimit(Number(e.target.value));
+  const handleViewOrder = (e) => {
+    console.log("View order with ID:", e);
+  };
+  const handleDeleteOrder = async (e) => {
+    console.log("Delete order with ID:", e);
+  };
   const handleNewOrder = () => {
     navigate("/orders/new");
   };
+
+  useEffect(() => {
+    const getOrders = async () => {
+      setLoading(true);
+      try {
+        const data = await dispatch(fetchOrders()).unwrap();
+
+        const uniqueOrdersMap = new Map();
+        data.forEach((order) => {
+          if (!uniqueOrdersMap.has(order.orderId)) {
+            uniqueOrdersMap.set(order.orderId, order);
+          }
+        });
+        const uniqueOrders = Array.from(uniqueOrdersMap.values());
+
+        setOrders(uniqueOrders);
+      } catch (error) {
+        setOrders([]);
+      }
+      setLoading(false);
+    };
+    getOrders();
+  }, [dispatch]);
 
   return (
     <Card>
@@ -45,9 +78,8 @@ const OrderList = () => {
                 Order ID
               </th>
               <th style={{ textAlign: "left", padding: "8px 16px" }}>
-                Customer
+                Customer ID
               </th>
-              <th style={{ textAlign: "left", padding: "8px 16px" }}>Email</th>
               <th style={{ textAlign: "left", padding: "8px 16px" }}>Date</th>
               <th style={{ textAlign: "left", padding: "8px 16px" }}>Total</th>
               <th style={{ textAlign: "left", padding: "8px 16px" }}>
@@ -62,7 +94,7 @@ const OrderList = () => {
                   Loading...
                 </td>
               </tr>
-            ) : orders.length === 0 ? (
+            ) : !Array.isArray(orders) || orders.length === 0 ? (
               <tr>
                 <td colSpan={6} style={{ padding: "8px", textAlign: "center" }}>
                   No orders found.
@@ -72,18 +104,22 @@ const OrderList = () => {
               orders.map((order) => (
                 <tr key={order.orderId}>
                   <td style={{ padding: "8px 16px" }}>{order.orderId}</td>
-                  <td style={{ padding: "8px 16px" }}>{order.customerName}</td>
-                  <td style={{ padding: "8px 16px" }}>{order.customerEmail}</td>
+                  <td style={{ padding: "8px 16px" }}>{order.customerId}</td>
                   <td style={{ padding: "8px 16px" }}>{order.createdAt}</td>
                   <td style={{ padding: "8px 16px" }}>{order.totalPrice}</td>
                   <td style={{ padding: "8px 16px" }}>
-                    <Button color="primary" size="small">
+                    <Button
+                      color="primary"
+                      size="small"
+                      onClick={handleViewOrder}
+                    >
                       View
                     </Button>
                     <Button
                       color="secondary"
                       size="small"
                       style={{ marginLeft: 8 }}
+                      onClick={handleDeleteOrder}
                     >
                       Delete
                     </Button>

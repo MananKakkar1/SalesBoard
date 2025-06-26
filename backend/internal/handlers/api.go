@@ -382,6 +382,37 @@ func createOrderHandler(w http.ResponseWriter, r *http.Request) {
     w.WriteHeader(http.StatusCreated)
 }
 
+func getOrdersHandler(w http.ResponseWriter, r *http.Request) {
+    rows, err := tools.DB.Query(`
+        SELECT o.orderId, o.customerId, o.userId, o.totalPrice, o.createdAt,
+               oi.productId, oi.quantity, oi.salePrice
+        FROM orders o
+        JOIN order_items oi ON o.orderId = oi.orderId`)
+    if err != nil {
+        tools.HandleInternalServerError(w, err)
+        return
+    }
+    
+    defer rows.Close()
+
+    var orders []models.Order
+    for rows.Next() {
+        var order models.Order
+        var item models.OrderItem
+        if err := rows.Scan(&order.OrderID, &order.CustomerID, &order.UserID,
+            &order.TotalPrice, &order.CreatedAt, &item.ProductID,
+            &item.Quantity, &item.SalePrice); err != nil {
+            tools.HandleInternalServerError(w, err)
+            return
+        }
+        order.ProductItems = append(order.ProductItems, item)
+        orders = append(orders, order)
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(orders)
+}
+
 // Handler configures the HTTP router with CORS, middleware, and API endpoints.
 func Handler(r *chi.Mux) {
     r.Use(cors.Handler(cors.Options{
@@ -404,6 +435,7 @@ func Handler(r *chi.Mux) {
     r.Get("/api/products", getProductsHandler)
     r.Get("/api/products/{id}", getProductByIdHandler)
     r.Get("/api/products/search", searchProductsHandler)
+    r.Get("/api/orders", getOrdersHandler)
     r.Put("/api/products/{id}", updateProductHandler)
     r.Put("/api/customers/{id}", updateCustomerDataHandler)
     r.Delete("/api/products/{id}", deleteProductHandler)

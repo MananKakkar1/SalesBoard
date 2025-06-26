@@ -3,18 +3,20 @@ import Button from "../../components/common/Button";
 import InputField from "../../components/common/InputField";
 import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { searchProducts, searchCustomers } from "../../features/auth/authSlice";
-import { createOrder } from "../../features/auth/authSlice";
+import {
+  searchProducts,
+  searchCustomers,
+  createOrder,
+} from "../../features/auth/authSlice";
 
 const PRODUCTS_KEY = "orderFormProducts";
 
 const OrderForm = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+
   const [customerQuery, setCustomerQuery] = useState("");
-  const [productQuery, setProductQuery] = useState("");
   const [customerOptions, setCustomerOptions] = useState([]);
-  const [productOptions, setProductOptions] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
 
   const [products, setProducts] = useState(() => {
@@ -24,24 +26,101 @@ const OrderForm = () => {
       : [{ productId: null, quantity: null, salePrice: null }];
   });
 
+  const [productQueries, setProductQueries] = useState(() =>
+    products.map(() => "")
+  );
+  const [productOptions, setProductOptions] = useState({});
+
   const [totalPrice, setTotalPrice] = useState(0);
 
   useEffect(() => {
     localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products));
   }, [products]);
 
-  const handleOrderSubmit = () => {
+  useEffect(() => {
+    setTotalPrice(
+      products.reduce((total, p) => {
+        if (p.quantity && p.salePrice) {
+          return total + Number(p.quantity) * Number(p.salePrice);
+        }
+        return total;
+      }, 0)
+    );
+  }, [products]);
+
+  useEffect(() => {
+    if (!products || products.length === 0) {
+      setProducts([{ productId: null, quantity: null, salePrice: null }]);
+    }
+  }, []);
+
+  const handleCustomerSearchChange = async (e) => {
+    const value = e.target.value;
+    setCustomerQuery(value);
+    if (value) {
+      try {
+        const data = await dispatch(searchCustomers(value)).unwrap();
+        setCustomerOptions(data);
+      } catch (error) {
+        console.error("Failed to search customers", error);
+        setCustomerOptions([]);
+      }
+    } else {
+      setCustomerOptions([]);
+    }
+  };
+
+  const handleProductSearchChange = async (e, idx) => {
+    const value = e.target.value;
+
+    const updatedQueries = [...productQueries];
+    updatedQueries[idx] = value;
+    setProductQueries(updatedQueries);
+
+    const updatedProducts = [...products];
+    updatedProducts[idx].product = value;
+    setProducts(updatedProducts);
+
+    if (value) {
+      try {
+        const data = await dispatch(searchProducts(value)).unwrap();
+        setProductOptions((prev) => ({
+          ...prev,
+          [idx]: data,
+        }));
+      } catch (error) {
+        console.error("Failed to search products", error);
+        setProductOptions((prev) => ({
+          ...prev,
+          [idx]: [],
+        }));
+      }
+    } else {
+      setProductOptions((prev) => ({
+        ...prev,
+        [idx]: [],
+      }));
+    }
+  };
+
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleOrderSubmit = async () => {
     if (!selectedCustomer) {
       console.error("No customer selected");
       return;
     }
+
     const validProducts = products.filter(
       (p) => p.productId && p.quantity && p.salePrice
     );
+
     if (validProducts.length === 0) {
       console.error("No valid products added");
       return;
     }
+
+    setSubmitting(true);
 
     const orderData = {
       orderId: Date.now(),
@@ -56,73 +135,23 @@ const OrderForm = () => {
       createdAt: new Date().toISOString(),
     };
 
-    dispatch(createOrder(orderData));
-
-    setCustomerQuery("");
-    setCustomerOptions([]);
-    setProductOptions([]);
-    setSelectedCustomer(null);
-    setProducts([{ productId: null, quantity: null, salePrice: null }]);
-    setTotalPrice(0);
-    localStorage.removeItem(PRODUCTS_KEY);
-
-    navigate(`/orders`);
-  };
-
-  const handleCustomerSearchChange = async (e) => {
-    const value = e.target.value;
-    setCustomerQuery(value);
-    if (value) {
-      try {
-        const data = await dispatch(searchCustomers(value)).unwrap();
-        setCustomerOptions(data);
-      } catch (error) {
-        console.error("Failed to search customers", error);
-        setCustomerOptions([0]);
-      }
-    } else {
+    try {
+      await dispatch(createOrder(orderData));
+      setCustomerQuery("");
       setCustomerOptions([]);
-    }
-  };
-
-  const handleProductSearchChange = async (e, idx) => {
-    const updated = [...products];
-    updated[idx].product = e.target.value;
-    setProducts(updated);
-    const value = e.target.value;
-    setProductQuery(value);
-    if (value) {
-      try {
-        const data = await dispatch(searchProducts(value)).unwrap();
-        setProductOptions(data);
-      } catch (error) {
-        console.error("Failed to search customers", error);
-        setProductOptions([0]);
-      }
-    } else {
-      setProductOptions([]);
-    }
-  };
-
-  const calculateTotalPrice = (productsArr) => {
-    let total = 0;
-    for (const product of productsArr) {
-      if (product.quantity && product.salePrice) {
-        total += Number(product.quantity) * Number(product.salePrice);
-      }
-    }
-    return total;
-  };
-
-  useEffect(() => {
-    setTotalPrice(calculateTotalPrice(products));
-  }, [products]);
-
-  useEffect(() => {
-    if (!products || products.length === 0) {
+      setSelectedCustomer(null);
       setProducts([{ productId: null, quantity: null, salePrice: null }]);
+      setProductQueries([""]);
+      setProductOptions({});
+      setTotalPrice(0);
+      localStorage.removeItem(PRODUCTS_KEY);
+      navigate("/orders");
+    } catch (error) {
+      console.error("Failed to create order", error);
+    } finally {
+      setSubmitting(false);
     }
-  }, []);
+  };
 
   return (
     <div>
@@ -194,14 +223,14 @@ const OrderForm = () => {
               <InputField
                 id={`productSearch-${idx}`}
                 placeholder="Search Products by Name"
-                value={productQuery}
+                value={productQueries[idx] || ""}
                 onChange={(e) => handleProductSearchChange(e, idx)}
                 style={{ width: 250 }}
                 autoComplete="off"
               />
-              {product.product &&
-                Array.isArray(productOptions) &&
-                productOptions.length > 0 && (
+              {productQueries[idx] &&
+                Array.isArray(productOptions[idx]) &&
+                productOptions[idx].length > 0 && (
                   <div
                     style={{
                       position: "absolute",
@@ -215,7 +244,7 @@ const OrderForm = () => {
                       overflowY: "auto",
                     }}
                   >
-                    {productOptions.map((option, pidx) => (
+                    {productOptions[idx].map((option, pidx) => (
                       <div
                         key={option.id || pidx}
                         style={{
@@ -224,16 +253,23 @@ const OrderForm = () => {
                           borderBottom: "1px solid #eee",
                         }}
                         onMouseDown={() => {
-                          const updated = [...products];
-                          updated[idx] = {
-                            ...updated[idx],
+                          const updatedProducts = [...products];
+                          updatedProducts[idx] = {
+                            ...updatedProducts[idx],
                             productId: option.id,
-                            quantity: updated[idx].quantity ?? 1,
+                            quantity: updatedProducts[idx].quantity ?? 1,
                             salePrice: option.price,
                           };
-                          setProducts(updated);
-                          setProductOptions([]);
-                          setProductQuery(option.name || "");
+                          setProducts(updatedProducts);
+
+                          const updatedQueries = [...productQueries];
+                          updatedQueries[idx] = option.name || "";
+                          setProductQueries(updatedQueries);
+
+                          setProductOptions((prev) => ({
+                            ...prev,
+                            [idx]: [],
+                          }));
                         }}
                       >
                         {option.name}{" "}
@@ -268,6 +304,7 @@ const OrderForm = () => {
                   ...products,
                   { productId: null, quantity: null, salePrice: null },
                 ]);
+                setProductQueries([...productQueries, ""]);
               }}
               style={{ height: 42 }}
               disabled={idx !== products.length - 1}
@@ -281,10 +318,14 @@ const OrderForm = () => {
                   setProducts([
                     { productId: null, quantity: null, salePrice: null },
                   ]);
+                  setProductQueries([""]);
                 } else {
-                  const updated = [...products];
-                  updated.splice(idx, 1);
-                  setProducts(updated);
+                  const updatedProducts = [...products];
+                  const updatedQueries = [...productQueries];
+                  updatedProducts.splice(idx, 1);
+                  updatedQueries.splice(idx, 1);
+                  setProducts(updatedProducts);
+                  setProductQueries(updatedQueries);
                 }
               }}
               disabled={
@@ -301,8 +342,8 @@ const OrderForm = () => {
       <div>
         <h3>Total Price: ${totalPrice.toFixed(2)}</h3>
       </div>
-      <Button color="primary" onClick={handleOrderSubmit} Submit Order>
-        Submit Order
+      <Button color="primary" onClick={handleOrderSubmit} disabled={submitting}>
+        {submitting ? "Submitting..." : "Submit Order"}
       </Button>
     </div>
   );
