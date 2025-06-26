@@ -8,163 +8,12 @@ export const login = createAsyncThunk(
     try {
       const response = await api.post("/api/login", credentials);
       const { token, user } = response.data;
-
       localStorage.setItem("token", token);
-
-      return {
-        token,
-        user,
-      };
+      return { token, user };
     } catch (error) {
       return rejectWithValue(
-        error.response && error.response.data && error.response.data.error
-          ? error.response.data.error
-          : "Login failed"
+        error.response?.data?.error || "Login failed"
       );
-    }
-  }
-);
-
-export const createCustomer = createAsyncThunk(
-  'customers/createCustomer',
-  async (customerData, { rejectWithValue }) => {
-    try {
-      const response = await api.post('/api/create-customer', customerData);
-      return response.data;
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to create customer');
-    }
-  }
-);
-
-export const updateCustomer = createAsyncThunk(
-  'customers/updateCustomer',
-  async ({ id, customerData }, { rejectWithValue }) => {
-    try {
-      const response = await api.put(`/api/customers/${id}`, customerData);
-      return response.data;
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to update customer');
-    }
-  }
-);
-
-export const fetchCustomers = createAsyncThunk(
-  'customers/fetchCustomers',
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await api.get('/api/customers');
-      return response.data; 
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to fetch customers');
-    }
-  }
-);
-
-export const deleteCustomer = createAsyncThunk(
-  'customers/deleteCustomer', 
-  async (id, { rejectWithValue }) => {
-    try {
-      await api.delete(`/api/customers/${id}/delete`);
-      return id; 
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to delete customer');
-    }
-  }
-)
-
-export const searchCustomers = createAsyncThunk(
-  'customers/searchCustomers',
-  async (query, { rejectWithValue }) => {
-    try {
-      const response = await api.get(`/api/customers/search?q=${encodeURIComponent(query)}`);
-      return response.data;
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to search customers');
-    }
-  }
-);
-
-export const createProduct = createAsyncThunk(
-  'products/createProduct',
-  async (productData, { rejectWithValue }) => {
-    try {
-      const response = await api.post('/api/create-product', productData);
-      return response.data;
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to create product');
-    }
-  }
-);
-
-export const updateProduct = createAsyncThunk(
-  'products/updateProduct',
-  async ({ id, productData }, { rejectWithValue }) => {
-    try {
-      const response = await api.put(`/api/products/${id}`, productData);
-      return response.data;
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to update product');
-    }
-  }
-);
-
-export const fetchProducts = createAsyncThunk(
-  'products/fetchProducts',
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await api.get('/api/products');
-      return response.data;
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to fetch products');
-    }
-  }
-);
-
-export const deleteProduct = createAsyncThunk(
-  'products/deleteProduct',
-  async (id, { rejectWithValue }) => {
-    try {
-      await api.delete(`/api/products/${id}`);
-      return id;
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to delete product');
-    }
-  }
-);
-
-export const searchProducts = createAsyncThunk(
-  'products/searchProducts',
-  async (query, { rejectWithValue }) => {
-    try {
-      const response = await api.get(`/api/products/search?q=${encodeURIComponent(query)}`);
-      return response.data;
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to search products');
-    }
-  }
-);
-
-export const createOrder = createAsyncThunk(
-  'orders/createOrder',
-  async (orderData, { rejectWithValue }) => {
-    try {
-      const response = await api.post('/api/create-order', orderData);
-      return response.data;
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to create order');
-    }
-  }
-);
-
-export const fetchOrders = createAsyncThunk(
-  'orders/fetchOrders',
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await api.get('/api/orders');
-      return response.data;
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.error || 'Failed to fetch orders');
     }
   }
 );
@@ -173,7 +22,7 @@ const initialState = {
   token: localStorage.getItem("token") || null,
   user: null,
   isAuthenticated: !!localStorage.getItem("token"),
-  status: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
+  status: "idle",
   error: null,
 };
 

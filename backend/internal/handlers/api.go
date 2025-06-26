@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -392,7 +391,7 @@ func getOrdersHandler(w http.ResponseWriter, r *http.Request) {
         tools.HandleInternalServerError(w, err)
         return
     }
-    
+
     defer rows.Close()
 
     var orders []models.Order
@@ -408,7 +407,6 @@ func getOrdersHandler(w http.ResponseWriter, r *http.Request) {
         order.ProductItems = append(order.ProductItems, item)
         orders = append(orders, order)
     }
-
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(orders)
 }

@@ -8,7 +8,7 @@ import {
   fetchCustomers,
   deleteCustomer,
   searchCustomers,
-} from "../../features/auth/authSlice";
+} from "../../features/customers/customerSlice";
 
 const CustomerList = () => {
   const navigate = useNavigate();

@@ -8,7 +8,7 @@ import {
   createProduct,
   updateProduct,
   fetchProducts,
-} from "../../features/auth/authSlice";
+} from "../../features/products/productSlice";
 
 const fetchProductById = async (id, dispatch) => {
   // Use fetchProducts or a dedicated fetchProductById thunk if you have one

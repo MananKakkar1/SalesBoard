@@ -8,7 +8,7 @@ import {
   fetchProducts,
   deleteProduct,
   searchProducts,
-} from "../../features/auth/authSlice";
+} from "../../features/products/productSlice";
 
 const ProductList = () => {
   const navigate = useNavigate();

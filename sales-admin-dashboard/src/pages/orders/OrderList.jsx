@@ -3,7 +3,7 @@ import Card, { CardHeader, CardContent } from "../../components/common/Card";
 import Button from "../../components/common/Button";
 import InputField from "../../components/common/InputField";
 import { useNavigate } from "react-router-dom";
-import { fetchOrders } from "../../features/auth/authSlice";
+import { fetchOrders } from "../../features/orders/orderSlice";
 import { useDispatch } from "react-redux";
 
 const OrderList = () => {
@@ -36,8 +36,10 @@ const OrderList = () => {
       try {
         const data = await dispatch(fetchOrders()).unwrap();
 
+        const ordersArray = Array.isArray(data) ? data : data.orders || [];
+
         const uniqueOrdersMap = new Map();
-        data.forEach((order) => {
+        ordersArray.forEach((order) => {
           if (!uniqueOrdersMap.has(order.orderId)) {
             uniqueOrdersMap.set(order.orderId, order);
           }
@@ -46,6 +48,7 @@ const OrderList = () => {
 
         setOrders(uniqueOrders);
       } catch (error) {
+        console.error("Failed to fetch orders:", error);
         setOrders([]);
       }
       setLoading(false);

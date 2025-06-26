@@ -4,7 +4,7 @@ import Card, { CardHeader, CardContent } from "../../components/common/Card";
 import Button from "../../components/common/Button";
 import InputField from "../../components/common/InputField";
 import { useDispatch } from "react-redux";
-import { createCustomer, updateCustomer } from "../../features/auth/authSlice";
+import { createCustomer, updateCustomer } from "../../features/customers/customerSlice";
 import api from "../../services/api"; 
 
 const fetchCustomerById = async (id) => {

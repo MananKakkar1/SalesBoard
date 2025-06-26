@@ -5,9 +5,14 @@ import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import {
   searchProducts,
+  fetchProductById,
+} from "../../features/products/productSlice";
+import {
   searchCustomers,
+} from "../../features/customers/customerSlice";
+import {
   createOrder,
-} from "../../features/auth/authSlice";
+} from "../../features/orders/orderSlice";
 
 const PRODUCTS_KEY = "orderFormProducts";
 
@@ -307,6 +312,14 @@ const OrderForm = () => {
                 const updated = [...products];
                 updated[idx].quantity = Number(e.target.value);
                 setProducts(updated);
+                console.log("Updated products:", updated[idx].productId);
+                const product = dispatch(fetchProductById(updated[idx].productId)).unwrap();
+                console.log("Fetched product:", product);
+                if (product && updated[idx].quantity > product.stock) {
+                  alert("Quantity exceeds available stock");
+                  updated[idx].quantity = productStock.stock;
+                  setProducts(updated);
+                }
               }}
               style={{ width: 100 }}
             />
