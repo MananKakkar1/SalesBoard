@@ -7,22 +7,27 @@ import {
   searchProducts,
   fetchProductById,
 } from "../../features/products/productSlice";
-import {
-  searchCustomers,
-} from "../../features/customers/customerSlice";
-import {
-  createOrder,
-} from "../../features/orders/orderSlice";
+import { searchCustomers } from "../../features/customers/customerSlice";
+import { createOrder } from "../../features/orders/orderSlice";
 
 const PRODUCTS_KEY = "orderFormProducts";
+const PRODUCT_QUERIES_KEY = "orderFormProductQueries";
+const CUSTOMER_QUERY_KEY = "orderFormCustomerQuery";
+const SELECTED_CUSTOMER_KEY = "orderFormSelectedCustomer";
 
 const OrderForm = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const [customerQuery, setCustomerQuery] = useState("");
+  const [customerQuery, setCustomerQuery] = useState(() => {
+    return localStorage.getItem(CUSTOMER_QUERY_KEY) || "";
+  });
+
   const [customerOptions, setCustomerOptions] = useState([]);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [selectedCustomer, setSelectedCustomer] = useState(() => {
+    const saved = localStorage.getItem(SELECTED_CUSTOMER_KEY);
+    return saved ? JSON.parse(saved) : null;
+  });
 
   const [products, setProducts] = useState(() => {
     const saved = localStorage.getItem(PRODUCTS_KEY);
@@ -31,16 +36,37 @@ const OrderForm = () => {
       : [{ productId: null, quantity: null, salePrice: null }];
   });
 
-  const [productQueries, setProductQueries] = useState(() =>
-    products.map(() => "")
-  );
-  const [productOptions, setProductOptions] = useState({});
+  const [productQueries, setProductQueries] = useState(() => {
+    const saved = localStorage.getItem(PRODUCT_QUERIES_KEY);
+    return saved ? JSON.parse(saved) : products.map(() => "");
+  });
 
+  const [productOptions, setProductOptions] = useState({});
   const [totalPrice, setTotalPrice] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products));
   }, [products]);
+
+  useEffect(() => {
+    localStorage.setItem(PRODUCT_QUERIES_KEY, JSON.stringify(productQueries));
+  }, [productQueries]);
+
+  useEffect(() => {
+    localStorage.setItem(CUSTOMER_QUERY_KEY, customerQuery);
+  }, [customerQuery]);
+
+  useEffect(() => {
+    if (selectedCustomer) {
+      localStorage.setItem(
+        SELECTED_CUSTOMER_KEY,
+        JSON.stringify(selectedCustomer)
+      );
+    } else {
+      localStorage.removeItem(SELECTED_CUSTOMER_KEY);
+    }
+  }, [selectedCustomer]);
 
   useEffect(() => {
     setTotalPrice(
@@ -62,6 +88,7 @@ const OrderForm = () => {
   const handleCustomerSearchChange = async (e) => {
     const value = e.target.value;
     setCustomerQuery(value);
+    setSelectedCustomer(null);
     if (value) {
       try {
         const data = await dispatch(searchCustomers(value)).unwrap();
@@ -108,8 +135,6 @@ const OrderForm = () => {
     }
   };
 
-  const [submitting, setSubmitting] = useState(false);
-
   const handleOrderSubmit = async () => {
     if (!selectedCustomer) {
       console.error("No customer selected");
@@ -136,7 +161,7 @@ const OrderForm = () => {
         quantity: p.quantity,
         salePrice: p.salePrice,
       })),
-      totalPrice: totalPrice,
+      totalPrice,
       createdAt: new Date().toDateString(),
     };
 
@@ -150,6 +175,9 @@ const OrderForm = () => {
       setProductOptions({});
       setTotalPrice(0);
       localStorage.removeItem(PRODUCTS_KEY);
+      localStorage.removeItem(PRODUCT_QUERIES_KEY);
+      localStorage.removeItem(CUSTOMER_QUERY_KEY);
+      localStorage.removeItem(SELECTED_CUSTOMER_KEY);
       navigate("/orders");
     } catch (error) {
       console.error("Failed to create order", error);
@@ -173,6 +201,7 @@ const OrderForm = () => {
             style={{ width: 675 }}
           />
           {customerQuery &&
+            !selectedCustomer &&
             Array.isArray(customerOptions) &&
             customerOptions.length > 0 && (
               <div
@@ -212,6 +241,7 @@ const OrderForm = () => {
             )}
         </div>
       </div>
+
       <div>
         <h3 style={{ marginBottom: 4 }}>Products:</h3>
         <Button
@@ -308,17 +338,24 @@ const OrderForm = () => {
               placeholder="Quantity"
               type="number"
               value={product.quantity ?? ""}
-              onChange={(e) => {
+              onChange={async (e) => {
                 const updated = [...products];
                 updated[idx].quantity = Number(e.target.value);
                 setProducts(updated);
-                console.log("Updated products:", updated[idx].productId);
-                const product = dispatch(fetchProductById(updated[idx].productId)).unwrap();
-                console.log("Fetched product:", product);
-                if (product && updated[idx].quantity > product.stock) {
-                  alert("Quantity exceeds available stock");
-                  updated[idx].quantity = productStock.stock;
-                  setProducts(updated);
+                try {
+                  const productRes = await dispatch(
+                    fetchProductById(updated[idx].productId)
+                  ).unwrap();
+                  if (
+                    productRes &&
+                    updated[idx].quantity > productRes.stock
+                  ) {
+                    alert("Quantity exceeds available stock");
+                    updated[idx].quantity = productRes.stock;
+                    setProducts([...updated]);
+                  }
+                } catch (err) {
+                  console.error("Failed to validate stock", err);
                 }
               }}
               style={{ width: 100 }}
@@ -351,6 +388,7 @@ const OrderForm = () => {
           </div>
         ))}
       </div>
+
       <div>
         <h3>Total Price: ${totalPrice.toFixed(2)}</h3>
       </div>

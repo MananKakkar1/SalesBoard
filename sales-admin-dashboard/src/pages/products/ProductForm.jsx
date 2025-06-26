@@ -11,8 +11,6 @@ import {
 } from "../../features/products/productSlice";
 
 const fetchProductById = async (id, dispatch) => {
-  // Use fetchProducts or a dedicated fetchProductById thunk if you have one
-  // For now, fetch all and find by id (replace with a real API call in production)
   const products = await dispatch(fetchProducts()).unwrap();
   return products.find((p) => String(p.id) === String(id));
 };
@@ -40,10 +38,24 @@ const ProductForm = () => {
   }, [id, dispatch]);
 
   const validate = () => {
+    const priceRegex = /^\d+(\.\d+)?$/;
+    const stockRegex = /^\d+$/;
     const errs = {};
-    if (!form.name) errs.name = "Name is required";
-    if (!form.price) errs.price = "Price is required";
-    if (!form.stock) errs.stock = "Stock is required";
+    if (!form.name) {
+      errs.name = "Name is required";
+    }
+
+    if (!form.price) {
+      errs.price = "Price is required";
+    } else if (!priceRegex.test(form.price)) {
+      errs.price = "Price must be a valid number (whole or decimal)";
+    }
+
+    if (!form.stock) {
+      errs.stock = "Stock is required";
+    } else if (!stockRegex.test(form.stock)) {
+      errs.stock = "Stock must be a whole number";
+    }
     return errs;
   };
 

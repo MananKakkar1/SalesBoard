@@ -4,8 +4,11 @@ import Card, { CardHeader, CardContent } from "../../components/common/Card";
 import Button from "../../components/common/Button";
 import InputField from "../../components/common/InputField";
 import { useDispatch } from "react-redux";
-import { createCustomer, updateCustomer } from "../../features/customers/customerSlice";
-import api from "../../services/api"; 
+import {
+  createCustomer,
+  updateCustomer,
+} from "../../features/customers/customerSlice";
+import api from "../../services/api";
 
 const fetchCustomerById = async (id) => {
   const response = await api.get(`/api/customers/${id}`);
@@ -44,9 +47,38 @@ const CustomerForm = () => {
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
+  const validateForm = () => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phoneRegex = /^(\+1\s?)?(\(\d{3}\)|\d{3})[\s.-]?\d{3}[\s.-]?\d{4}$/;
+    const addressRegex = /^.{5,}$/;
+    const errs = {};
+    if (!form.name) {
+      errs.name = "Name is required";
+    }
+    if (!form.email) {
+      errs.email = "Email is required";
+    } else if (!emailRegex.test(form.email)) {
+      errs.email = "Invalid email format";
+    }
+
+    if (!form.phone) {
+      errs.phone = "Phone is required";
+    } else if (!phoneRegex.test(form.phone)) {
+      errs.phone = "Invalid US phone number";
+    }
+
+    if (!form.address) {
+      errs.address = "Address is required";
+    } else if (!addressRegex.test(form.address)) {
+      errs.address = "Address must be at least 5 characters";
+    }
+
+    return errs;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const errs = validate();
+    const errs = validateForm();
     setErrors(errs);
 
     if (Object.keys(errs).length === 0) {
@@ -58,7 +90,13 @@ const CustomerForm = () => {
         }
         navigate("/customers");
       } catch (error) {
-        alert(error?.message || "Failed to save customer.");
+        if (error === "UNIQUE constraint failed: customers.email") {
+          alert("Email already exists. Please use a different email.");
+        } else if (error === "UNIQUE constraint failed: customers.phone") {
+          alert("Phone number already exists. Please use a different phone number.");
+        } else if (error === "UNIQUE constraint failed: customers.address") {
+          alert("Address already exists. Please use a different address.");
+        }
       }
     }
   };
