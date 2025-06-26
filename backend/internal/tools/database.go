@@ -70,6 +70,22 @@ func InitDB(filepath string) {
     if err != nil {
         log.Fatalf("Failed to create orders table: %v", err)
     }
+
+    createOrderItemsTable := `
+    CREATE TABLE IF NOT EXISTS order_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        orderId INTEGER NOT NULL,
+        productId INTEGER NOT NULL,
+        quantity INTEGER NOT NULL,
+        salePrice REAL NOT NULL,
+        FOREIGN KEY(orderId) REFERENCES orders(orderId),
+        FOREIGN KEY(productId) REFERENCES products(id)
+    );`
+
+    _, err = DB.Exec(createOrderItemsTable)
+    if err != nil {
+        log.Fatalf("Failed to create order_items table: %v", err)
+    }
 }
 
 // InsertDummyUser inserts a default user into the users table if not already present for sample login.

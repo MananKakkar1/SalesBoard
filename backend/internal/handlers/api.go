@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -35,7 +36,7 @@ type LoginResponse struct {
 // It is an endpoint of /api/login requests and extracts the login credentials from the request body, checks them against the database,
 // and returns a JWT token if the credentials are valid. If authentication fails, it returns
 // a 401 Unauthorized error.
-func LoginHandler(w http.ResponseWriter, r *http.Request) {
+func loginHandler(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		tools.HandleBadRequest(w, errors.New("invalid request"))
@@ -62,7 +63,6 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create JWT token
 	jwtSecret := []byte(os.Getenv("JWT_SECRET"))
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"userId": userId,
@@ -83,7 +83,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
-func CreateCustomerHandler(w http.ResponseWriter, r *http.Request) {
+func createCustomerHandler(w http.ResponseWriter, r *http.Request) {
 	var customer models.Customer
 	if err := json.NewDecoder(r.Body).Decode(&customer); err != nil {
 		tools.HandleBadRequest(w, errors.New("invalid request"))
@@ -209,7 +209,7 @@ func searchCustomersHandler(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(customers)
 }
 
-func CreateProductHandler(w http.ResponseWriter, r *http.Request) {
+func createProductHandler(w http.ResponseWriter, r *http.Request) {
     var product models.Product
     if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
         tools.HandleBadRequest(w, errors.New("invalid request"))
@@ -335,30 +335,78 @@ func searchProductsHandler(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(products)
 }
 
+func createOrderHandler(w http.ResponseWriter, r *http.Request) {
+    var order models.Order
+    if err := json.NewDecoder(r.Body).Decode(&order); err != nil {
+        tools.HandleBadRequest(w, errors.New("invalid request"))
+        return
+    }
+
+    if order.CustomerID == 0 || len(order.ProductItems) == 0 || order.TotalPrice <= 0 || order.OrderID == 0 {
+        tools.HandleBadRequest(w, errors.New("customerId, productItems, totalPrice, orderId are required"))
+        return
+    }
+
+    tx, err := tools.DB.Begin()
+    if err != nil {
+        tools.HandleInternalServerError(w, err)
+        return
+    }
+    defer tx.Rollback()
+
+    _, err = tx.Exec(
+        "INSERT INTO orders (orderId, customerId, userId, totalPrice, createdAt) VALUES (?, ?, ?, ?, ?)",
+        order.OrderID, order.CustomerID, order.UserID, order.TotalPrice, order.CreatedAt,
+    )
+    if err != nil {
+        tools.HandleInternalServerError(w, err)
+        return
+    }
+
+    for _, item := range order.ProductItems {
+        _, err := tx.Exec(
+            "INSERT INTO order_items (orderId, productId, quantity, salePrice) VALUES (?, ?, ?, ?)",
+            order.OrderID, item.ProductID, item.Quantity, item.SalePrice,
+        )
+        if err != nil {
+            tools.HandleInternalServerError(w, err)
+            return
+        }
+    }
+
+    if err := tx.Commit(); err != nil {
+        tools.HandleInternalServerError(w, err)
+        return
+    }
+
+    w.WriteHeader(http.StatusCreated)
+}
+
 // Handler configures the HTTP router with CORS, middleware, and API endpoints.
 func Handler(r *chi.Mux) {
-	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-		ExposedHeaders:   []string{"Link"},
-		AllowCredentials: true,
-		MaxAge:           300,
-	}))
+    r.Use(cors.Handler(cors.Options{
+        AllowedOrigins:   []string{"http://localhost:5173"},
+        AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+        AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+        ExposedHeaders:   []string{"Link"},
+        AllowCredentials: true,
+        MaxAge:           300,
+    }))
 
-	r.Use(chimiddle.StripSlashes)
-	r.Post("/api/login", LoginHandler)
-	r.Post("/api/products", CreateProductHandler)
-	r.Post("/api/create-customer", CreateCustomerHandler)
-	r.Get("/api/customers", getCustomersHandler)
-	r.Get("/api/customers/{id}", getCustomerByIdHandler)
-	r.Get("/api/customers/search", searchCustomersHandler)
-	r.Get("/api/products", getProductsHandler)
-	r.Get("/api/products/{id}", getProductByIdHandler)
-	r.Get("/api/products/search", searchProductsHandler)
-	r.Put("/api/products/{id}", updateProductHandler)
-	r.Put("/api/customers/{id}", updateCustomerDataHandler)
-	r.Delete("/api/products/{id}", deleteProductHandler)
-	r.Delete("/api/customers/{id}/delete", deleteCustomerHandler)
+    r.Use(chimiddle.StripSlashes)
+    r.Post("/api/login", loginHandler)
+    r.Post("/api/create-product", createProductHandler)
+    r.Post("/api/create-customer", createCustomerHandler)
+    r.Post("/api/create-order", createOrderHandler)
+    r.Get("/api/customers", getCustomersHandler)
+    r.Get("/api/customers/{id}", getCustomerByIdHandler)
+    r.Get("/api/customers/search", searchCustomersHandler)
+    r.Get("/api/products", getProductsHandler)
+    r.Get("/api/products/{id}", getProductByIdHandler)
+    r.Get("/api/products/search", searchProductsHandler)
+    r.Put("/api/products/{id}", updateProductHandler)
+    r.Put("/api/customers/{id}", updateCustomerDataHandler)
+    r.Delete("/api/products/{id}", deleteProductHandler)
+    r.Delete("/api/customers/{id}/delete", deleteCustomerHandler)
 }
 
