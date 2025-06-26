@@ -49,28 +49,31 @@ const CustomerForm = () => {
 
   const validateForm = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const phoneRegex = /^(\+1\s?)?(\(\d{3}\)|\d{3})[\s.-]?\d{3}[\s.-]?\d{4}$/;
-    const addressRegex = /^.{5,}$/;
+    const phoneRegex = /^(\+1\s?)?(\(?\d{3}\)?[\s.-]?)?\d{3}[\s.-]?\d{4}$/;
+    const addressMinLength = 5;
+
     const errs = {};
-    if (!form.name) {
+
+    if (!form.name || form.name.trim() === "") {
       errs.name = "Name is required";
     }
-    if (!form.email) {
+
+    if (!form.email || form.email.trim() === "") {
       errs.email = "Email is required";
     } else if (!emailRegex.test(form.email)) {
       errs.email = "Invalid email format";
     }
 
-    if (!form.phone) {
+    if (!form.phone || form.phone.trim() === "") {
       errs.phone = "Phone is required";
     } else if (!phoneRegex.test(form.phone)) {
       errs.phone = "Invalid US phone number";
     }
 
-    if (!form.address) {
+    if (!form.address || form.address.trim() === "") {
       errs.address = "Address is required";
-    } else if (!addressRegex.test(form.address)) {
-      errs.address = "Address must be at least 5 characters";
+    } else if (form.address.trim().length < addressMinLength) {
+      errs.address = `Address must be at least ${addressMinLength} characters`;
     }
 
     return errs;
@@ -93,7 +96,9 @@ const CustomerForm = () => {
         if (error === "UNIQUE constraint failed: customers.email") {
           alert("Email already exists. Please use a different email.");
         } else if (error === "UNIQUE constraint failed: customers.phone") {
-          alert("Phone number already exists. Please use a different phone number.");
+          alert(
+            "Phone number already exists. Please use a different phone number."
+          );
         } else if (error === "UNIQUE constraint failed: customers.address") {
           alert("Address already exists. Please use a different address.");
         }

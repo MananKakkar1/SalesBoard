@@ -41,21 +41,27 @@ const ProductForm = () => {
     const priceRegex = /^\d+(\.\d+)?$/;
     const stockRegex = /^\d+$/;
     const errs = {};
-    if (!form.name) {
+
+    if (!form.name || form.name.trim() === "") {
       errs.name = "Name is required";
     }
 
-    if (!form.price) {
+    if (!form.price || form.price.toString().trim() === "") {
       errs.price = "Price is required";
     } else if (!priceRegex.test(form.price)) {
       errs.price = "Price must be a valid number (whole or decimal)";
+    } else if (parseFloat(form.price) <= 0) {
+      errs.price = "Price must be greater than 0";
     }
 
-    if (!form.stock) {
+    if (!form.stock || form.stock.toString().trim() === "") {
       errs.stock = "Stock is required";
     } else if (!stockRegex.test(form.stock)) {
       errs.stock = "Stock must be a whole number";
+    } else if (parseInt(form.stock) <= 0) {
+      errs.stock = "Stock must be greater than 0";
     }
+
     return errs;
   };
 
