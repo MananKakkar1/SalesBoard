@@ -132,7 +132,7 @@ const OrderForm = () => {
         salePrice: p.salePrice,
       })),
       totalPrice: totalPrice,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date().toDateString(),
     };
 
     try {
