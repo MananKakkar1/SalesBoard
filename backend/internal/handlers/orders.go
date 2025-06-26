@@ -5,6 +5,7 @@ import (
     "errors"
     "net/http"
     "database/sql"
+    "strings"
 
     "github.com/go-chi/chi"
     "github.com/MananKakkar1/min-manan/backend/internal/tools"
@@ -161,4 +162,47 @@ func deleteOrderHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     w.WriteHeader(http.StatusNoContent)
+}
+
+func searchOrdersHandler(w http.ResponseWriter, r *http.Request) {
+    query := strings.TrimSpace(r.URL.Query().Get("q"))
+    var rows *sql.Rows
+    var err error
+    if query != "" {
+        likeQuery := "%" + strings.ToLower(query) + "%"
+        rows, err = tools.DB.Query(
+            `SELECT o.orderId, o.customerId, o.userId, o.totalPrice, o.createdAt
+             FROM orders o
+             JOIN customers c ON o.customerId = c.id
+             WHERE CAST(o.orderId AS TEXT) LIKE ?
+                OR LOWER(o.createdAt) LIKE ?
+                OR LOWER(c.name) LIKE ?
+                OR LOWER(c.email) LIKE ?`,
+            likeQuery, likeQuery, likeQuery, likeQuery,
+        )
+    } else {
+        rows, err = tools.DB.Query(
+            `SELECT orderId, customerId, userId, totalPrice, createdAt FROM orders`,
+        )
+    }
+    if err != nil {
+        tools.HandleInternalServerError(w, err)
+        return
+    }
+    defer rows.Close()
+
+    var orders []models.Order
+    count := 0
+    for rows.Next() {
+        var o models.Order
+        if err := rows.Scan(&o.OrderID, &o.CustomerID, &o.UserID, &o.TotalPrice, &o.CreatedAt); err != nil {
+            tools.HandleInternalServerError(w, err)
+            return
+        }
+        orders = append(orders, o)
+        count++
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(orders)
 }

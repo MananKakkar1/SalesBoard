@@ -32,6 +32,7 @@ func Handler(r *chi.Mux) {
     r.Get("/api/products/search", searchProductsHandler)
     r.Get("/api/orders", getOrdersHandler)
     r.Get("/api/orders/{id}", getOrderByIDHandler)
+    r.Get("/api/orders/search", searchOrdersHandler)
     r.Put("/api/products/{id}", updateProductHandler)
     r.Put("/api/customers/{id}", updateCustomerDataHandler)
     r.Delete("/api/products/{id}", deleteProductHandler)

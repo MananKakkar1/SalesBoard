@@ -3,7 +3,7 @@ import Card, { CardHeader, CardContent } from "../../components/common/Card";
 import Button from "../../components/common/Button";
 import InputField from "../../components/common/InputField";
 import { useNavigate } from "react-router-dom";
-import { deleteOrder, fetchOrders } from "../../features/orders/orderSlice";
+import { deleteOrder, fetchOrders, searchOrders } from "../../features/orders/orderSlice";
 import { useDispatch } from "react-redux";
 
 const OrderList = () => {
@@ -17,7 +17,34 @@ const OrderList = () => {
 
   const dispatch = useDispatch();
 
-  const handleSearchChange = (e) => setSearch(e.target.value);
+  const handleSearchChange = async (e) => {
+    const value = e.target.value;
+    setSearch(value);
+    setLoading(true);
+    try {
+      if (value) {
+        const data = await dispatch(searchOrders(value)).unwrap();
+        setOrders(data);
+      } else {
+        const data = await dispatch(fetchOrders()).unwrap();
+        const ordersArray = Array.isArray(data) ? data : data.orders || [];
+
+        const uniqueOrdersMap = new Map();
+        ordersArray.forEach((order) => {
+          if (!uniqueOrdersMap.has(order.orderId)) {
+            uniqueOrdersMap.set(order.orderId, order);
+          }
+        });
+        const uniqueOrders = Array.from(uniqueOrdersMap.values());
+
+        setOrders(uniqueOrders);
+      }
+    } catch (error) {
+      setOrders([]);
+    }
+    setLoading(false);
+  };
+
   const handlePageChange = (newPage) => setPage(newPage);
   const handleLimitChange = (e) => setLimit(Number(e.target.value));
   const handleViewOrder = (orderId) => {

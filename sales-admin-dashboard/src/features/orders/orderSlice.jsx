@@ -49,6 +49,18 @@ export const deleteOrder = createAsyncThunk(
   }
 );
 
+export const searchOrders = createAsyncThunk(
+  'orders/searchOrders',
+  async (query, { rejectWithValue }) => {
+    try {
+      const response = await api.get(`/api/orders/search?q=${encodeURIComponent(query)}`);
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.error || 'Failed to search orders');
+    }
+  }
+);
+
 const orderSlice = createSlice({
   name: "orders",
   initialState: {
