@@ -4,6 +4,7 @@ import InputField from "../../components/common/InputField";
 import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { searchProducts, searchCustomers } from "../../features/auth/authSlice";
+import { createOrder } from "../../features/auth/authSlice";
 
 const PRODUCTS_KEY = "orderFormProducts";
 
@@ -11,7 +12,7 @@ const OrderForm = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [customerQuery, setCustomerQuery] = useState("");
-  const [productsQuery, setProductsQuery] = useState("");
+  const [productQuery, setProductQuery] = useState("");
   const [customerOptions, setCustomerOptions] = useState([]);
   const [productOptions, setProductOptions] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -20,7 +21,7 @@ const OrderForm = () => {
     const saved = localStorage.getItem(PRODUCTS_KEY);
     return saved
       ? JSON.parse(saved)
-      : [{ product: "", quantity: null, salePrice: 0 }];
+      : [{ productId: null, quantity: null, salePrice: null }];
   });
 
   const [totalPrice, setTotalPrice] = useState(0);
@@ -30,6 +31,41 @@ const OrderForm = () => {
   }, [products]);
 
   const handleOrderSubmit = () => {
+    if (!selectedCustomer) {
+      console.error("No customer selected");
+      return;
+    }
+    const validProducts = products.filter(
+      (p) => p.productId && p.quantity && p.salePrice
+    );
+    if (validProducts.length === 0) {
+      console.error("No valid products added");
+      return;
+    }
+
+    const orderData = {
+      orderId: Date.now(),
+      customerId: selectedCustomer.id,
+      userId: 1,
+      productItems: validProducts.map((p) => ({
+        productId: p.productId,
+        quantity: p.quantity,
+        salePrice: p.salePrice,
+      })),
+      totalPrice: totalPrice,
+      createdAt: new Date().toISOString(),
+    };
+
+    dispatch(createOrder(orderData));
+
+    setCustomerQuery("");
+    setCustomerOptions([]);
+    setProductOptions([]);
+    setSelectedCustomer(null);
+    setProducts([{ productId: null, quantity: null, salePrice: null }]);
+    setTotalPrice(0);
+    localStorage.removeItem(PRODUCTS_KEY);
+
     navigate(`/orders`);
   };
 
@@ -54,7 +90,7 @@ const OrderForm = () => {
     updated[idx].product = e.target.value;
     setProducts(updated);
     const value = e.target.value;
-    setProductsQuery(value);
+    setProductQuery(value);
     if (value) {
       try {
         const data = await dispatch(searchProducts(value)).unwrap();
@@ -81,6 +117,12 @@ const OrderForm = () => {
   useEffect(() => {
     setTotalPrice(calculateTotalPrice(products));
   }, [products]);
+
+  useEffect(() => {
+    if (!products || products.length === 0) {
+      setProducts([{ productId: null, quantity: null, salePrice: null }]);
+    }
+  }, []);
 
   return (
     <div>
@@ -152,7 +194,7 @@ const OrderForm = () => {
               <InputField
                 id={`productSearch-${idx}`}
                 placeholder="Search Products by Name"
-                value={product.product}
+                value={productQuery}
                 onChange={(e) => handleProductSearchChange(e, idx)}
                 style={{ width: 250 }}
                 autoComplete="off"
@@ -185,13 +227,13 @@ const OrderForm = () => {
                           const updated = [...products];
                           updated[idx] = {
                             ...updated[idx],
-                            product: option.name,
                             productId: option.id,
+                            quantity: updated[idx].quantity ?? 1,
                             salePrice: option.price,
-                            stock: option.stock,
                           };
                           setProducts(updated);
                           setProductOptions([]);
+                          setProductQuery(option.name || "");
                         }}
                       >
                         {option.name}{" "}
@@ -211,10 +253,10 @@ const OrderForm = () => {
               id={`quantity-${idx}`}
               placeholder="Quantity"
               type="number"
-              value={product.quantity}
+              value={product.quantity ?? ""}
               onChange={(e) => {
                 const updated = [...products];
-                updated[idx].quantity = e.target.value;
+                updated[idx].quantity = Number(e.target.value);
                 setProducts(updated);
               }}
               style={{ width: 100 }}
@@ -224,7 +266,7 @@ const OrderForm = () => {
               onClick={() => {
                 setProducts([
                   ...products,
-                  { product: "", quantity: null, salePrice: 0 },
+                  { productId: null, quantity: null, salePrice: null },
                 ]);
               }}
               style={{ height: 42 }}
@@ -235,10 +277,20 @@ const OrderForm = () => {
             <Button
               color="secondary"
               onClick={() => {
-                const updated = [...products];
-                updated.splice(idx, 1);
-                setProducts(updated);
+                if (products.length === 1) {
+                  setProducts([
+                    { productId: null, quantity: null, salePrice: null },
+                  ]);
+                } else {
+                  const updated = [...products];
+                  updated.splice(idx, 1);
+                  setProducts(updated);
+                }
               }}
+              disabled={
+                products.length === 1 &&
+                !(product.productId || product.quantity || product.salePrice)
+              }
               style={{ height: 42 }}
             >
               Remove Product

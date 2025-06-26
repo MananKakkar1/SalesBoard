@@ -54,7 +54,7 @@ export const fetchCustomers = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await api.get('/api/customers');
-      return response.data; // Return the list of customers
+      return response.data; 
     } catch (err) {
       return rejectWithValue(err.response?.data?.error || 'Failed to fetch customers');
     }
@@ -66,7 +66,7 @@ export const deleteCustomer = createAsyncThunk(
   async (id, { rejectWithValue }) => {
     try {
       await api.delete(`/api/customers/${id}/delete`);
-      return id; // Return the ID of the deleted customer
+      return id; 
     } catch (err) {
       return rejectWithValue(err.response?.data?.error || 'Failed to delete customer');
     }
@@ -89,7 +89,7 @@ export const createProduct = createAsyncThunk(
   'products/createProduct',
   async (productData, { rejectWithValue }) => {
     try {
-      const response = await api.post('/api/products', productData);
+      const response = await api.post('/api/create-product', productData);
       return response.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.error || 'Failed to create product');
@@ -141,6 +141,30 @@ export const searchProducts = createAsyncThunk(
       return response.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.error || 'Failed to search products');
+    }
+  }
+);
+
+export const createOrder = createAsyncThunk(
+  'orders/createOrder',
+  async (orderData, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/api/create-order', orderData);
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.error || 'Failed to create order');
+    }
+  }
+);
+
+export const fetchOrders = createAsyncThunk(
+  'orders/fetchOrders',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/api/orders');
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.error || 'Failed to fetch orders');
     }
   }
 );
