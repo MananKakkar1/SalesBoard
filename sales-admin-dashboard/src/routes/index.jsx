@@ -25,43 +25,83 @@ const router = createBrowserRouter([
     children: [
       {
         path: "dashboard",
-        element: <Dashboard />,
+        element: (
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "customers",
-        element: <CustomerList />,
+        element: (
+          <ProtectedRoute>
+            <CustomerList />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "customers/new",
-        element: <CustomerForm />,
+        element: (
+          <ProtectedRoute>
+            <CustomerForm />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "customers/:id/edit",
-        element: <CustomerForm />,
+        element: (
+          <ProtectedRoute>
+            <CustomerForm />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "products",
-        element: <ProductList />,
+        element: (
+          <ProtectedRoute>
+            <ProductList />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "products/new",
-        element: <ProductForm />,
+        element: (
+          <ProtectedRoute>
+            <ProductForm />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "products/:id",
-        element: <ProductForm />,
+        element: (
+          <ProtectedRoute>
+            <ProductForm />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "orders",
-        element: <OrderList />,
+        element: (
+          <ProtectedRoute>
+            <OrderList />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "orders/new",
-        element: <OrderForm />,
+        element: (
+          <ProtectedRoute>
+            <OrderForm />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "orders/:id",
-        element: <OrderForm />,
+        element: (
+          <ProtectedRoute>
+            <OrderForm />
+          </ProtectedRoute>
+        ),
       },
     ],
   },

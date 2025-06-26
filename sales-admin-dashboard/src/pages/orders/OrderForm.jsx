@@ -209,6 +209,19 @@ const OrderForm = () => {
       </div>
       <div>
         <h3 style={{ marginBottom: 4 }}>Products:</h3>
+        <Button
+          color="primary"
+          onClick={() => {
+            setProducts([
+              ...products,
+              { productId: null, quantity: null, salePrice: null },
+            ]);
+            setProductQueries([...productQueries, ""]);
+          }}
+          style={{ height: 42 }}
+        >
+          Add Product
+        </Button>
         {products.map((product, idx) => (
           <div
             key={idx}
@@ -297,20 +310,6 @@ const OrderForm = () => {
               }}
               style={{ width: 100 }}
             />
-            <Button
-              color="primary"
-              onClick={() => {
-                setProducts([
-                  ...products,
-                  { productId: null, quantity: null, salePrice: null },
-                ]);
-                setProductQueries([...productQueries, ""]);
-              }}
-              style={{ height: 42 }}
-              disabled={idx !== products.length - 1}
-            >
-              Add Product
-            </Button>
             <Button
               color="secondary"
               onClick={() => {
