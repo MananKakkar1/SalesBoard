@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Card, { CardHeader, CardContent } from "../../components/common/Card";
 import Button from "../../components/common/Button";
 import InputField from "../../components/common/InputField";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import {
   fetchProducts,
   deleteProduct,
@@ -13,26 +13,13 @@ import {
 const ProductList = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const [products, setProducts] = useState([]);
-  const [paginatedProducts, setPaginatedProducts] = useState([]);
+  const { list: products, pagination } = useSelector((state) => state.products);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
+  const [pageSize, setPageSize] = useState(20);
 
-  const paginate = (items, perPage) => {
-    const chunks = [];
-    for (let i = 0; i < items.length; i += perPage) {
-      chunks.push(items.slice(i, i + perPage));
-    }
-    return chunks;
-  };
-
-  const updatePagination = (list) => {
-    const paginated = paginate(list, limit);
-    setPaginatedProducts(paginated);
-    setPage(1);
-  };
+  const productsArray = Array.isArray(products) ? products : [];
 
   const handleNewProduct = () => {
     navigate("/products/new");
@@ -46,11 +33,7 @@ const ProductList = () => {
     setLoading(true);
     try {
       await dispatch(deleteProduct(id)).unwrap();
-      const data = search
-        ? await dispatch(searchProducts(search)).unwrap()
-        : await dispatch(fetchProducts()).unwrap();
-      setProducts(data);
-      updatePagination(data);
+      await loadProducts();
     } catch (error) {
       console.error("Failed to delete product", error);
     }
@@ -60,41 +43,63 @@ const ProductList = () => {
   const handleSearchChange = async (e) => {
     const value = e.target.value;
     setSearch(value);
+    setPage(1);
     setLoading(true);
     try {
-      const data = value
-        ? await dispatch(searchProducts(value)).unwrap()
-        : await dispatch(fetchProducts()).unwrap();
-      setProducts(data);
-      updatePagination(data);
+      if (value) {
+        await dispatch(
+          searchProducts({ query: value, page: 1, pageSize })
+        ).unwrap();
+      } else {
+        await dispatch(fetchProducts({ page: 1, pageSize })).unwrap();
+      }
     } catch (error) {
-      setProducts([]);
+      console.error("Failed to search products", error);
     }
     setLoading(false);
   };
 
-  const handlePageChange = (newPage) => setPage(newPage);
-  const handleLimitChange = (e) => {
-    const newLimit = Number(e.target.value);
-    setLimit(newLimit);
-    const paginated = paginate(products, newLimit);
-    setPaginatedProducts(paginated);
+  const handlePageChange = (newPage) => {
+    setPage(newPage);
+    loadProducts(newPage);
+  };
+
+  const handlePageSizeChange = (newPageSize) => {
+    setPageSize(newPageSize);
     setPage(1);
+    loadProducts(1, newPageSize);
+  };
+
+  const loadProducts = async (
+    currentPage = page,
+    currentPageSize = pageSize
+  ) => {
+    setLoading(true);
+    try {
+      if (search) {
+        await dispatch(
+          searchProducts({
+            query: search,
+            page: currentPage,
+            pageSize: currentPageSize,
+          })
+        ).unwrap();
+      } else {
+        await dispatch(
+          fetchProducts({
+            page: currentPage,
+            pageSize: currentPageSize,
+          })
+        ).unwrap();
+      }
+    } catch (error) {
+      console.error("Failed to load products", error);
+    }
+    setLoading(false);
   };
 
   useEffect(() => {
-    const getProducts = async () => {
-      setLoading(true);
-      try {
-        const data = await dispatch(fetchProducts()).unwrap();
-        setProducts(data);
-        updatePagination(data);
-      } catch (error) {
-        setProducts([]);
-      }
-      setLoading(false);
-    };
-    getProducts();
+    loadProducts();
   }, [dispatch]);
 
   return (
@@ -132,14 +137,14 @@ const ProductList = () => {
                   Loading...
                 </td>
               </tr>
-            ) : paginatedProducts.length === 0 ? (
+            ) : !productsArray || productsArray.length === 0 ? (
               <tr>
                 <td colSpan={6} style={{ textAlign: "center", padding: 8 }}>
                   No products found.
                 </td>
               </tr>
             ) : (
-              paginatedProducts[page - 1]?.map((product) => (
+              productsArray.map((product) => (
                 <tr key={product.id}>
                   <td style={{ padding: "8px" }}>{product.id}</td>
                   <td style={{ padding: "8px" }}>{product.name}</td>
@@ -171,7 +176,10 @@ const ProductList = () => {
         <div style={{ marginTop: 16 }}>
           <label>
             Page Size:&nbsp;
-            <select value={limit} onChange={handleLimitChange}>
+            <select
+              value={pageSize}
+              onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+            >
               {[10, 20, 50, 100].map((size) => (
                 <option key={size} value={size}>
                   {size}
@@ -180,17 +188,17 @@ const ProductList = () => {
             </select>
           </label>
           <Button
-            disabled={page === 1}
+            disabled={!pagination.hasPrev}
             onClick={() => handlePageChange(page - 1)}
             style={{ marginLeft: 16 }}
           >
             Previous
           </Button>
           <span style={{ margin: "0 8px" }}>
-            Page {page} of {paginatedProducts.length || 1}
+            Page {pagination.page} of {pagination.totalPages || 1}
           </span>
           <Button
-            disabled={page >= paginatedProducts.length}
+            disabled={!pagination.hasNext}
             onClick={() => handlePageChange(page + 1)}
           >
             Next

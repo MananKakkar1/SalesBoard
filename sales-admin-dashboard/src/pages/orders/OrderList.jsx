@@ -8,54 +8,55 @@ import {
   fetchOrders,
   searchOrders,
 } from "../../features/orders/orderSlice";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 const OrderList = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { list: orders, pagination } = useSelector((state) => state.orders);
   const [search, setSearch] = useState("");
-  const [orders, setOrders] = useState([]);
-  const [paginatedOrders, setPaginatedOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
-  const dispatch = useDispatch();
+  const [pageSize, setPageSize] = useState(20);
 
-  const paginate = (items, pageSize) => {
-    const pages = [];
-    for (let i = 0; i < items.length; i += pageSize) {
-      pages.push(items.slice(i, i + pageSize));
-    }
-    return pages;
-  };
+  const ordersArray = Array.isArray(orders) ? orders : [];
 
   const handleSearchChange = async (e) => {
     const value = e.target.value;
     setSearch(value);
+    setPage(1);
     setLoading(true);
     try {
       if (value) {
-        const data = await dispatch(searchOrders(value)).unwrap();
-        setOrders(data);
-        setPaginatedOrders(paginate(data, limit));
-        setPage(1);
+        await dispatch(
+          searchOrders({ query: value, page: 1, pageSize })
+        ).unwrap();
       } else {
-        await getOrders();
+        await dispatch(fetchOrders({ page: 1, pageSize })).unwrap();
       }
     } catch (error) {
-      setOrders([]);
-      setPaginatedOrders([]);
+      console.error("Failed to search orders", error);
     }
     setLoading(false);
   };
 
-  const handlePageChange = (newPage) => setPage(newPage);
-  const handleLimitChange = (e) => setLimit(Number(e.target.value));
+  const handlePageChange = (newPage) => {
+    setPage(newPage);
+    loadOrders(newPage);
+  };
+
+  const handlePageSizeChange = (newPageSize) => {
+    setPageSize(newPageSize);
+    setPage(1);
+    loadOrders(1, newPageSize);
+  };
+
   const handleViewOrder = (orderId) => navigate(`/orders/${orderId}`);
 
   const handleDeleteOrder = async (orderId) => {
     try {
       await dispatch(deleteOrder(orderId)).unwrap();
-      await getOrders();
+      await loadOrders();
     } catch (error) {
       console.error("Failed to delete or re-fetch orders:", error);
     }
@@ -63,34 +64,34 @@ const OrderList = () => {
 
   const handleNewOrder = () => navigate("/orders/new");
 
-  const getOrders = async () => {
+  const loadOrders = async (currentPage = page, currentPageSize = pageSize) => {
     setLoading(true);
     try {
-      const data = await dispatch(fetchOrders()).unwrap();
-      const ordersArray = Array.isArray(data) ? data : data.orders || [];
-
-      const uniqueOrdersMap = new Map();
-      ordersArray.forEach((order) => {
-        if (!uniqueOrdersMap.has(order.orderId)) {
-          uniqueOrdersMap.set(order.orderId, order);
-        }
-      });
-
-      const uniqueOrders = Array.from(uniqueOrdersMap.values());
-      setOrders(uniqueOrders);
-      setPaginatedOrders(paginate(uniqueOrders, limit));
-      setPage(1);
+      if (search) {
+        await dispatch(
+          searchOrders({
+            query: search,
+            page: currentPage,
+            pageSize: currentPageSize,
+          })
+        ).unwrap();
+      } else {
+        await dispatch(
+          fetchOrders({
+            page: currentPage,
+            pageSize: currentPageSize,
+          })
+        ).unwrap();
+      }
     } catch (error) {
       console.error("Failed to fetch orders:", error);
-      setOrders([]);
-      setPaginatedOrders([]);
     }
     setLoading(false);
   };
 
   useEffect(() => {
-    getOrders();
-  }, [dispatch, limit]);
+    loadOrders();
+  }, [dispatch]);
 
   return (
     <Card>
@@ -133,14 +134,14 @@ const OrderList = () => {
                   Loading...
                 </td>
               </tr>
-            ) : paginatedOrders.length === 0 || !paginatedOrders[page - 1] ? (
+            ) : !ordersArray || ordersArray.length === 0 ? (
               <tr>
                 <td colSpan={6} style={{ padding: "8px", textAlign: "center" }}>
                   No orders found.
                 </td>
               </tr>
             ) : (
-              paginatedOrders[page - 1].map((order) => (
+              ordersArray.map((order) => (
                 <tr key={order.orderId}>
                   <td style={{ padding: "8px 16px" }}>{order.orderId}</td>
                   <td style={{ padding: "8px 16px" }}>{order.customerId}</td>
@@ -171,7 +172,10 @@ const OrderList = () => {
         <div style={{ marginTop: 16 }}>
           <label>
             Page Size:&nbsp;
-            <select value={limit} onChange={handleLimitChange}>
+            <select
+              value={pageSize}
+              onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+            >
               {[10, 20, 50, 100].map((size) => (
                 <option key={size} value={size}>
                   {size}
@@ -180,15 +184,17 @@ const OrderList = () => {
             </select>
           </label>
           <Button
-            disabled={page === 1}
+            disabled={!pagination.hasPrev}
             onClick={() => handlePageChange(page - 1)}
             style={{ marginLeft: 16 }}
           >
             Previous
           </Button>
-          <span style={{ margin: "0 8px" }}>Page {page}</span>
+          <span style={{ margin: "0 8px" }}>
+            Page {pagination.page} of {pagination.totalPages || 1}
+          </span>
           <Button
-            disabled={page >= paginatedOrders.length}
+            disabled={!pagination.hasNext}
             onClick={() => handlePageChange(page + 1)}
           >
             Next
