@@ -138,3 +138,38 @@ func searchCustomersHandler(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(customers)
 }
+
+func getTotalCustomersHandler(w http.ResponseWriter, r *http.Request) {
+    var count int
+    err := tools.DB.QueryRow("SELECT COUNT(*) FROM customers").Scan(&count)
+    if err != nil {
+        tools.HandleInternalServerError(w, err)
+        return
+    }
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]int{"totalCustomers": count})
+}
+
+func getRecentCustomersHandler(w http.ResponseWriter, r *http.Request) {
+    rows, err := tools.DB.Query(
+        "SELECT id, name, email, phone, address FROM customers ORDER BY id DESC LIMIT 3",
+    )
+    if err != nil {
+        tools.HandleInternalServerError(w, err)
+        return
+    }
+    defer rows.Close()
+
+    var customers []models.Customer
+    for rows.Next() {
+        var c models.Customer
+        if err := rows.Scan(&c.ID, &c.Name, &c.Email, &c.Phone, &c.Address); err != nil {
+            tools.HandleInternalServerError(w, err)
+            return
+        }
+        customers = append(customers, c)
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(customers)
+}

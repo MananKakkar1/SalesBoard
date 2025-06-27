@@ -61,6 +61,30 @@ export const searchCustomers = createAsyncThunk(
   }
 );
 
+export const getTotalCustomers = createAsyncThunk(
+  'customers/getTotalCustomers',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/api/customers/total-customers');
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.error || 'Failed to fetch total customers');
+    }
+  }
+);
+
+export const getRecentCustomers = createAsyncThunk(
+  'customers/getRecentCustomers',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/api/customers/recent');
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.error || 'Failed to fetch recent customers');
+    }
+  }
+);
+
 const customerSlice = createSlice({
   name: "customers",
   initialState: {

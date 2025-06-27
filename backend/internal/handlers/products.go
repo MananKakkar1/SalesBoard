@@ -137,3 +137,37 @@ func searchProductsHandler(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(products)
 }
+
+func getTotalProductsHandler(w http.ResponseWriter, r *http.Request) {
+    var count int
+    err := tools.DB.QueryRow("SELECT COUNT(*) FROM products").Scan(&count)
+    if err != nil {
+        tools.HandleInternalServerError(w, err)
+        return
+    }
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]int{"totalProducts": count})
+}
+
+func getRecentProductsHandler(w http.ResponseWriter, r *http.Request) {
+    rows, err := tools.DB.Query(
+        "SELECT id, name, price, stock FROM products ORDER BY id DESC LIMIT 3",
+    )
+    if err != nil {
+        tools.HandleInternalServerError(w, err)
+        return
+    }
+    defer rows.Close()
+
+    var products []models.Product
+    for rows.Next() {
+        var p models.Product
+        if err := rows.Scan(&p.ID, &p.Name, &p.Price, &p.Stock); err != nil {
+            tools.HandleInternalServerError(w, err)
+            return
+        }
+        products = append(products, p)
+    }
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(products)
+}

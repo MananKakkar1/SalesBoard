@@ -61,6 +61,43 @@ export const searchOrders = createAsyncThunk(
   }
 );
 
+export const getTotalRevenue = createAsyncThunk(
+  'orders/getTotalRevenue',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/api/orders/total');
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.error || 'Failed to fetch total revenue');
+    }
+  }
+);
+
+export const getTotalOrders = createAsyncThunk(
+  'orders/getTotalOrders',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/api/orders/total-orders');
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.error || 'Failed to fetch total orders');
+    }
+  }
+);
+
+export const getRecentOrders = createAsyncThunk(
+  'orders/getRecentOrders',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/api/orders/recent');
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.error || 'Failed to fetch recent orders');
+    }
+  }
+);
+
+
 const orderSlice = createSlice({
   name: "orders",
   initialState: {

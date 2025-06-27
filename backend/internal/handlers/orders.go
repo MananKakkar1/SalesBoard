@@ -206,3 +206,56 @@ func searchOrdersHandler(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(orders)
 }
+
+func getTotalRevenueHandler(w http.ResponseWriter, r *http.Request) {
+    var totalRevenue float64
+    err := tools.DB.QueryRow(
+        `SELECT SUM(totalPrice) FROM orders`,
+    ).Scan(&totalRevenue)
+    if err != nil {
+        tools.HandleInternalServerError(w, err)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]float64{"totalRevenue": totalRevenue})
+}
+
+func getTotalOrdersHandler(w http.ResponseWriter, r *http.Request) {
+    var totalOrders int
+    err := tools.DB.QueryRow(
+        `SELECT COUNT(*) FROM orders`,
+    ).Scan(&totalOrders)
+    if err != nil {
+        tools.HandleInternalServerError(w, err)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]int{"totalOrders": totalOrders})
+}
+
+func getRecentOrdersHandler(w http.ResponseWriter, r *http.Request) {
+    rows, err := tools.DB.Query(
+        `SELECT orderId, customerId, userId, totalPrice, createdAt
+         FROM orders ORDER BY createdAt DESC LIMIT 3`,
+    )
+    if err != nil {
+        tools.HandleInternalServerError(w, err)
+        return
+    }
+    defer rows.Close()
+
+    var orders []models.Order
+    for rows.Next() {
+        var o models.Order
+        if err := rows.Scan(&o.OrderID, &o.CustomerID, &o.UserID, &o.TotalPrice, &o.CreatedAt); err != nil {
+            tools.HandleInternalServerError(w, err)
+            return
+        }
+        orders = append(orders, o)
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(orders)
+}

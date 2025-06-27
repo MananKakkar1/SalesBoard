@@ -73,6 +73,30 @@ export const fetchProductById = createAsyncThunk(
   }
 );
 
+export const getTotalProducts = createAsyncThunk(
+  'products/getTotalProducts',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/api/products/total-products');
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.error || 'Failed to fetch total products');
+    }
+  }
+);
+
+export const getRecentProducts = createAsyncThunk(
+  'products/getRecentProducts',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/api/products/recent');
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.error || 'Failed to fetch recent products');
+    }
+  }
+);
+
 const productSlice = createSlice({
   name: "products",
   initialState: {
