@@ -97,6 +97,18 @@ export const getRecentProducts = createAsyncThunk(
   }
 );
 
+export const updateProductStock = createAsyncThunk(
+  'products/updateProductStock',
+  async ({ id, stock }, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`/api/products/${id}/stock`, { stock });
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.error || 'Failed to update product stock');
+    }
+  }
+);
+
 const productSlice = createSlice({
   name: "products",
   initialState: {

@@ -6,6 +6,8 @@ import { useNavigate } from "react-router-dom";
 import {
   searchProducts,
   fetchProductById,
+  updateProduct,
+  updateProductStock,
 } from "../../features/products/productSlice";
 import { searchCustomers } from "../../features/customers/customerSlice";
 import { createOrder } from "../../features/orders/orderSlice";
@@ -116,9 +118,10 @@ const OrderForm = () => {
     if (value) {
       try {
         const data = await dispatch(searchProducts(value)).unwrap();
+        const filteredData = data.filter((product) => product.stock > 0);
         setProductOptions((prev) => ({
           ...prev,
-          [idx]: data,
+          [idx]: filteredData,
         }));
       } catch (error) {
         console.error("Failed to search products", error);
@@ -165,8 +168,38 @@ const OrderForm = () => {
       createdAt: new Date().toDateString(),
     };
 
+    if (orderData.totalPrice <= 0) {
+      alert("Total price must be greater than zero.");
+      setSubmitting(false);
+      return;
+    }
+
     try {
       await dispatch(createOrder(orderData));
+      for (const item of validProducts) {
+        try {
+          const productRes = await dispatch(
+            fetchProductById(item.productId)
+          ).unwrap();
+
+          const newStock = productRes.stock - item.quantity;
+          if (newStock < 0) {
+            console.warn(
+              `Stock would be negative for product ${item.productId}`
+            );
+            continue;
+          }
+
+          await dispatch(
+            updateProductStock({ id: item.productId, stock: newStock })
+          );
+        } catch (err) {
+          console.error(
+            `Failed to update stock for product ${item.productId}`,
+            err
+          );
+        }
+      }
       setCustomerQuery("");
       setCustomerOptions([]);
       setSelectedCustomer(null);
@@ -305,7 +338,7 @@ const OrderForm = () => {
                           updatedProducts[idx] = {
                             ...updatedProducts[idx],
                             productId: option.id,
-                            quantity: updatedProducts[idx].quantity ?? 1,
+                            quantity: updatedProducts[idx].quantity ?? 0,
                             salePrice: option.price,
                           };
                           setProducts(updatedProducts);
@@ -339,19 +372,23 @@ const OrderForm = () => {
               type="number"
               value={product.quantity ?? ""}
               onChange={async (e) => {
+                const value = Number(e.target.value);
+                const clonedProduct = { ...products[idx], quantity: value };
                 const updated = [...products];
-                updated[idx].quantity = Number(e.target.value);
+                updated[idx] = clonedProduct;
                 setProducts(updated);
+
                 try {
                   const productRes = await dispatch(
-                    fetchProductById(updated[idx].productId)
+                    fetchProductById(clonedProduct.productId)
                   ).unwrap();
-                  if (
-                    productRes &&
-                    updated[idx].quantity > productRes.stock
-                  ) {
-                    alert("Quantity exceeds available stock");
-                    updated[idx].quantity = productRes.stock;
+
+                  if (productRes && clonedProduct.quantity > productRes.stock) {
+                    alert(
+                      "Quantity exceeds available stock, choose a lower quantity or choose another item."
+                    );
+                    clonedProduct.quantity = productRes.stock;
+                    updated[idx] = clonedProduct;
                     setProducts([...updated]);
                   }
                 } catch (err) {
