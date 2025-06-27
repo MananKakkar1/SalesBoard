@@ -145,6 +145,25 @@ export const updateProductStock = createAsyncThunk(
   }
 );
 
+export const searchProductsSimple = createAsyncThunk(
+  "products/searchProductsSimple",
+  async (query, { rejectWithValue }) => {
+    try {
+      const queryParams = new URLSearchParams();
+      queryParams.append("q", query);
+
+      const response = await api.get(
+        `/api/products/search-simple?${queryParams.toString()}`
+      );
+      return response.data.data || response.data;
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.error || "Failed to search products"
+      );
+    }
+  }
+);
+
 const productSlice = createSlice({
   name: "products",
   initialState: {

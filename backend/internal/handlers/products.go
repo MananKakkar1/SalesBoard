@@ -52,8 +52,30 @@ func getProductsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	offset := (page - 1) * pageSize
+
+	var totalCount int
+	var countQuery string
+	var countArgs []interface{}
+	if search != "" {
+		likeQuery := "%" + strings.ToLower(search) + "%"
+		countQuery = "SELECT COUNT(*) FROM products WHERE LOWER(name) LIKE ?"
+		countArgs = []interface{}{likeQuery}
+	} else {
+		countQuery = "SELECT COUNT(*) FROM products"
+		countArgs = []interface{}{}
+	}
+
+	err := tools.DB.QueryRow(countQuery, countArgs...).Scan(&totalCount)
+	if err != nil {
+		tools.HandleInternalServerError(w, err)
+		return
+	}
+
+	totalPages := (totalCount + pageSize - 1) / pageSize
+	hasNext := page < totalPages
+	hasPrev := page > 1
+
 	var rows *sql.Rows
-	var err error
 	var dataQuery string
 	var args []interface{}
 	if search != "" {
@@ -79,14 +101,13 @@ func getProductsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		products = append(products, p)
 	}
-	totalPages := 0
-	hasNext := false
-	hasPrev := page > 1
+
 	response := map[string]interface{}{
 		"data": products,
 		"pagination": map[string]interface{}{
 			"page":       page,
 			"pageSize":   pageSize,
+			"totalCount": totalCount,
 			"totalPages": totalPages,
 			"hasNext":    hasNext,
 			"hasPrev":    hasPrev,
@@ -163,8 +184,31 @@ func searchProductsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	offset := (page - 1) * pageSize
+
+	var totalCount int
+	var countQuery string
+	var countArgs []interface{}
+
+	if query != "" {
+		likeQuery := "%" + strings.ToLower(query) + "%"
+		countQuery = "SELECT COUNT(*) FROM products WHERE LOWER(name) LIKE ?"
+		countArgs = []interface{}{likeQuery}
+	} else {
+		countQuery = "SELECT COUNT(*) FROM products"
+		countArgs = []interface{}{}
+	}
+
+	err := tools.DB.QueryRow(countQuery, countArgs...).Scan(&totalCount)
+	if err != nil {
+		tools.HandleInternalServerError(w, err)
+		return
+	}
+
+	totalPages := (totalCount + pageSize - 1) / pageSize
+	hasNext := page < totalPages
+	hasPrev := page > 1
+
 	var rows *sql.Rows
-	var err error
 	var dataQuery string
 	var args []interface{}
 	if query != "" {
@@ -190,14 +234,13 @@ func searchProductsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		products = append(products, p)
 	}
-	totalPages := 0
-	hasNext := false
-	hasPrev := page > 1
+
 	response := map[string]interface{}{
 		"data": products,
 		"pagination": map[string]interface{}{
 			"page":       page,
 			"pageSize":   pageSize,
+			"totalCount": totalCount,
 			"totalPages": totalPages,
 			"hasNext":    hasNext,
 			"hasPrev":    hasPrev,
@@ -267,4 +310,42 @@ func updateProductStockHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func searchProductsSimpleHandler(w http.ResponseWriter, r *http.Request) {
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
+
+	var rows *sql.Rows
+	var err error
+	var dataQuery string
+	var args []interface{}
+
+	if query != "" {
+		likeQuery := "%" + strings.ToLower(query) + "%"
+		dataQuery = "SELECT id, name, price, stock FROM products WHERE LOWER(name) LIKE ? ORDER BY id"
+		args = []interface{}{likeQuery}
+	} else {
+		dataQuery = "SELECT id, name, price, stock FROM products ORDER BY id"
+		args = []interface{}{}
+	}
+
+	rows, err = tools.DB.Query(dataQuery, args...)
+	if err != nil {
+		tools.HandleInternalServerError(w, err)
+		return
+	}
+	defer rows.Close()
+
+	var products []models.Product
+	for rows.Next() {
+		var p models.Product
+		if err := rows.Scan(&p.ID, &p.Name, &p.Price, &p.Stock); err != nil {
+			tools.HandleInternalServerError(w, err)
+			return
+		}
+		products = append(products, p)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(products)
 }

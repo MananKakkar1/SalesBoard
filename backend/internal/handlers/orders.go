@@ -77,16 +77,38 @@ func getOrdersHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	offset := (page - 1) * pageSize
+
+	var totalCount int
+	var countQuery string
+	var countArgs []interface{}
+	if search != "" {
+		likeQuery := "%" + strings.ToLower(search) + "%"
+		countQuery = `SELECT COUNT(DISTINCT o.orderId) FROM orders o JOIN customers c ON o.customerId = c.id WHERE CAST(o.orderId AS TEXT) LIKE ? OR LOWER(o.createdAt) LIKE ? OR LOWER(c.name) LIKE ? OR LOWER(c.email) LIKE ?`
+		countArgs = []interface{}{likeQuery, likeQuery, likeQuery, likeQuery}
+	} else {
+		countQuery = `SELECT COUNT(*) FROM orders`
+		countArgs = []interface{}{}
+	}
+
+	err := tools.DB.QueryRow(countQuery, countArgs...).Scan(&totalCount)
+	if err != nil {
+		tools.HandleInternalServerError(w, err)
+		return
+	}
+
+	totalPages := (totalCount + pageSize - 1) / pageSize
+	hasNext := page < totalPages
+	hasPrev := page > 1
+
 	var rows *sql.Rows
-	var err error
 	var dataQuery string
 	var args []interface{}
 	if search != "" {
 		likeQuery := "%" + strings.ToLower(search) + "%"
-		dataQuery = `SELECT o.orderId, o.customerId, o.userId, o.totalPrice, o.createdAt FROM orders o JOIN customers c ON o.customerId = c.id WHERE CAST(o.orderId AS TEXT) LIKE ? OR LOWER(o.createdAt) LIKE ? OR LOWER(c.name) LIKE ? OR LOWER(c.email) LIKE ? GROUP BY o.orderId, o.customerId, o.userId, o.totalPrice, o.createdAt ORDER BY o.orderId DESC LIMIT ? OFFSET ?`
+		dataQuery = `SELECT o.orderId, o.customerId, o.userId, o.totalPrice, o.createdAt FROM orders o JOIN customers c ON o.customerId = c.id WHERE CAST(o.orderId AS TEXT) LIKE ? OR LOWER(o.createdAt) LIKE ? OR LOWER(c.name) LIKE ? OR LOWER(c.email) LIKE ? GROUP BY o.orderId, o.customerId, o.userId, o.totalPrice, o.createdAt ORDER BY o.orderId ASC LIMIT ? OFFSET ?`
 		args = []interface{}{likeQuery, likeQuery, likeQuery, likeQuery, pageSize, offset}
 	} else {
-		dataQuery = `SELECT orderId, customerId, userId, totalPrice, createdAt FROM orders ORDER BY orderId DESC LIMIT ? OFFSET ?`
+		dataQuery = `SELECT orderId, customerId, userId, totalPrice, createdAt FROM orders ORDER BY orderId ASC LIMIT ? OFFSET ?`
 		args = []interface{}{pageSize, offset}
 	}
 	rows, err = tools.DB.Query(dataQuery, args...)
@@ -104,14 +126,13 @@ func getOrdersHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		orders = append(orders, order)
 	}
-	totalPages := 0
-	hasNext := false
-	hasPrev := page > 1
+
 	response := map[string]interface{}{
 		"data": orders,
 		"pagination": map[string]interface{}{
 			"page":       page,
 			"pageSize":   pageSize,
+			"totalCount": totalCount,
 			"totalPages": totalPages,
 			"hasNext":    hasNext,
 			"hasPrev":    hasPrev,
@@ -213,12 +234,14 @@ func searchOrdersHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	offset := (page - 1) * pageSize
+
 	if query == "" {
 		response := map[string]interface{}{
 			"data": []models.Order{},
 			"pagination": map[string]interface{}{
 				"page":       page,
 				"pageSize":   pageSize,
+				"totalCount": 0,
 				"totalPages": 0,
 				"hasNext":    false,
 				"hasPrev":    false,
@@ -228,6 +251,11 @@ func searchOrdersHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(response)
 		return
 	}
+
+	var totalCount int
+	var countQuery string
+	var countArgs []interface{}
+
 	isNumeric := true
 	for _, c := range query {
 		if c < '0' || c > '9' {
@@ -235,14 +263,34 @@ func searchOrdersHandler(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
+
+	if isNumeric {
+		countQuery = `SELECT COUNT(*) FROM orders WHERE orderId = ?`
+		countArgs = []interface{}{query}
+	} else {
+		likeQuery := "%" + strings.ToLower(query) + "%"
+		countQuery = `SELECT COUNT(DISTINCT o.orderId) FROM orders o JOIN customers c ON o.customerId = c.id WHERE LOWER(o.createdAt) LIKE ? OR LOWER(c.name) LIKE ? OR LOWER(c.email) LIKE ?`
+		countArgs = []interface{}{likeQuery, likeQuery, likeQuery}
+	}
+
+	err := tools.DB.QueryRow(countQuery, countArgs...).Scan(&totalCount)
+	if err != nil {
+		tools.HandleInternalServerError(w, err)
+		return
+	}
+
+	totalPages := (totalCount + pageSize - 1) / pageSize
+	hasNext := page < totalPages
+	hasPrev := page > 1
+
 	var dataQuery string
 	var args []interface{}
 	if isNumeric {
-		dataQuery = `SELECT orderId, customerId, userId, totalPrice, createdAt FROM orders WHERE orderId = ? ORDER BY orderId DESC LIMIT ? OFFSET ?`
+		dataQuery = `SELECT orderId, customerId, userId, totalPrice, createdAt FROM orders WHERE orderId = ? ORDER BY orderId ASC LIMIT ? OFFSET ?`
 		args = []interface{}{query, pageSize, offset}
 	} else {
 		likeQuery := "%" + strings.ToLower(query) + "%"
-		dataQuery = `SELECT o.orderId, o.customerId, o.userId, o.totalPrice, o.createdAt FROM orders o JOIN customers c ON o.customerId = c.id WHERE LOWER(o.createdAt) LIKE ? OR LOWER(c.name) LIKE ? OR LOWER(c.email) LIKE ? GROUP BY o.orderId, o.customerId, o.userId, o.totalPrice, o.createdAt ORDER BY o.orderId DESC LIMIT ? OFFSET ?`
+		dataQuery = `SELECT o.orderId, o.customerId, o.userId, o.totalPrice, o.createdAt FROM orders o JOIN customers c ON o.customerId = c.id WHERE LOWER(o.createdAt) LIKE ? OR LOWER(c.name) LIKE ? OR LOWER(c.email) LIKE ? GROUP BY o.orderId, o.customerId, o.userId, o.totalPrice, o.createdAt ORDER BY o.orderId ASC LIMIT ? OFFSET ?`
 		args = []interface{}{likeQuery, likeQuery, likeQuery, pageSize, offset}
 	}
 	rows, err := tools.DB.Query(dataQuery, args...)
@@ -260,14 +308,13 @@ func searchOrdersHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		orders = append(orders, order)
 	}
-	totalPages := 0
-	hasNext := false
-	hasPrev := page > 1
+
 	response := map[string]interface{}{
 		"data": orders,
 		"pagination": map[string]interface{}{
 			"page":       page,
 			"pageSize":   pageSize,
+			"totalCount": totalCount,
 			"totalPages": totalPages,
 			"hasNext":    hasNext,
 			"hasPrev":    hasPrev,
@@ -308,7 +355,7 @@ func getTotalOrdersHandler(w http.ResponseWriter, r *http.Request) {
 func getRecentOrdersHandler(w http.ResponseWriter, r *http.Request) {
 	rows, err := tools.DB.Query(
 		`SELECT orderId, customerId, userId, totalPrice, createdAt
-         FROM orders ORDER BY createdAt DESC LIMIT 3`,
+         FROM orders ORDER BY orderId DESC LIMIT 3`,
 	)
 	if err != nil {
 		tools.HandleInternalServerError(w, err)

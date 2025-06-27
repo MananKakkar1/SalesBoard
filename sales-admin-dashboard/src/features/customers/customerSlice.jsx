@@ -119,6 +119,25 @@ export const getRecentCustomers = createAsyncThunk(
   }
 );
 
+export const searchCustomersSimple = createAsyncThunk(
+  "customers/searchCustomersSimple",
+  async (query, { rejectWithValue }) => {
+    try {
+      const queryParams = new URLSearchParams();
+      queryParams.append("q", query);
+
+      const response = await api.get(
+        `/api/customers/search-simple?${queryParams.toString()}`
+      );
+      return response.data.data || response.data;
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.error || "Failed to search customers"
+      );
+    }
+  }
+);
+
 const customerSlice = createSlice({
   name: "customers",
   initialState: {

@@ -141,12 +141,14 @@ const OrderList = () => {
                 </td>
               </tr>
             ) : (
-              ordersArray.map((order) => (
-                <tr key={order.orderId}>
+              ordersArray.map((order, index) => (
+                <tr key={order.orderId || `order-${index}`}>
                   <td style={{ padding: "8px 16px" }}>{order.orderId}</td>
                   <td style={{ padding: "8px 16px" }}>{order.customerId}</td>
                   <td style={{ padding: "8px 16px" }}>{order.createdAt}</td>
-                  <td style={{ padding: "8px 16px" }}>{order.totalPrice}</td>
+                  <td style={{ padding: "8px 16px" }}>
+                    ${(order.totalPrice || 0).toFixed(2)}
+                  </td>
                   <td style={{ padding: "8px 16px" }}>
                     <Button
                       color="primary"

@@ -8,8 +8,12 @@ import {
   fetchProductById,
   updateProduct,
   updateProductStock,
+  searchProductsSimple,
 } from "../../features/products/productSlice";
-import { searchCustomers } from "../../features/customers/customerSlice";
+import {
+  searchCustomers,
+  searchCustomersSimple,
+} from "../../features/customers/customerSlice";
 import { createOrder } from "../../features/orders/orderSlice";
 
 const PRODUCTS_KEY = "orderFormProducts";
@@ -93,7 +97,7 @@ const OrderForm = () => {
     setSelectedCustomer(null);
     if (value) {
       try {
-        const data = await dispatch(searchCustomers(value)).unwrap();
+        const data = await dispatch(searchCustomersSimple(value)).unwrap();
         setCustomerOptions(data);
       } catch (error) {
         console.error("Failed to search customers", error);
@@ -117,7 +121,7 @@ const OrderForm = () => {
 
     if (value) {
       try {
-        const data = await dispatch(searchProducts(value)).unwrap();
+        const data = await dispatch(searchProductsSimple(value)).unwrap();
         const filteredData = data.filter((product) => product.stock > 0);
         setProductOptions((prev) => ({
           ...prev,
