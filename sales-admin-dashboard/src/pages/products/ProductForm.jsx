@@ -56,10 +56,10 @@ const ProductForm = () => {
 
     if (!form.stock || form.stock.toString().trim() === "") {
       errs.stock = "Stock is required";
-    } else if (!stockRegex.test(form.stock)) {
-      errs.stock = "Stock must be a whole number";
     } else if (parseInt(form.stock) <= 0) {
       errs.stock = "Stock must be greater than 0";
+    } else if (!stockRegex.test(form.stock)) {
+      errs.stock = "Stock must be a valid number";
     }
 
     return errs;
