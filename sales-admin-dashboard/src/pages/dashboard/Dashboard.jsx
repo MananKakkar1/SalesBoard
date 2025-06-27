@@ -111,7 +111,7 @@ const Dashboard = () => {
     >
       <div style={{ maxWidth: 1200, margin: "0 auto" }}>
         {/* Header */}
-        <div style={{ marginBottom: 32 }}>
+        <div style={{ marginBottom: 32, textAlign: "center" }}>
           <h1 style={{ margin: "0 0 8px 0", fontSize: "2.5rem" }}>Dashboard</h1>
           <p style={{ margin: 0, color: "rgba(0, 0, 0, 0.54)" }}>
             Welcome to your sales administration dashboard
