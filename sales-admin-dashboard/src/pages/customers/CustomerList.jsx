@@ -17,6 +17,10 @@ const CustomerList = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [paginatedCustomers, setPaginatedCustomers] = useState([]);
+
   const handleNewCustomer = () => {
     navigate("/customers/new");
   };
@@ -74,6 +78,12 @@ const CustomerList = () => {
     getCustomers();
   }, [dispatch]);
 
+  useEffect(() => {
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    setPaginatedCustomers(customers.slice(startIndex, endIndex));
+  }, [customers, page, limit]);
+
   return (
     <Card>
       <CardHeader>
@@ -110,8 +120,14 @@ const CustomerList = () => {
                   Loading...
                 </td>
               </tr>
-            ) : !customers || customers.length === 0 ? null : (
-              customers.map((customer) => (
+            ) : !paginatedCustomers || paginatedCustomers.length === 0 ? (
+              <tr>
+                <td colSpan={6} style={{ padding: "8px", textAlign: "center" }}>
+                  No customers found.
+                </td>
+              </tr>
+            ) : (
+              paginatedCustomers.map((customer) => (
                 <tr key={customer.id}>
                   <td style={{ padding: "8px" }}>{customer.id}</td>
                   <td style={{ padding: "8px" }}>{customer.name}</td>
@@ -140,7 +156,32 @@ const CustomerList = () => {
             )}
           </tbody>
         </table>
-        {/* Pagination controls here */}
+        <div style={{ marginTop: 16 }}>
+          <label>
+            Page Size:&nbsp;
+            <select value={limit} onChange={(e) => setLimit(Number(e.target.value))}>
+              {[10, 20, 50, 100].map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Button
+            disabled={page === 1}
+            onClick={() => setPage(page - 1)}
+            style={{ marginLeft: 16 }}
+          >
+            Previous
+          </Button>
+          <span style={{ margin: "0 8px" }}>Page {page}</span>
+          <Button
+            disabled={page * limit >= customers.length}
+            onClick={() => setPage(page + 1)}
+          >
+            Next
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
