@@ -6,7 +6,6 @@ import (
     "errors"
     "net/http"
     "strings"
-    "log"
 
     "github.com/go-chi/chi"
     "github.com/MananKakkar1/min-manan/backend/internal/tools"
@@ -181,18 +180,11 @@ func updateProductStockHandler(w http.ResponseWriter, r *http.Request) {
     id := chi.URLParam(r, "id")
     var s StockUpdate
 
-    log.Printf("Received update stock request for product ID: %s", id)
-
     if err := json.NewDecoder(r.Body).Decode(&s); err != nil {
-        log.Printf("Failed to decode request body for product ID %s: %v", id, err)
         tools.HandleBadRequest(w, errors.New("invalid request"))
         return
     }
-
-    log.Printf("Decoded stock update: %+v", s)
-
     if s.Stock < 0 {
-        log.Printf("Invalid stock value (negative) for product ID %s: %d", id, s.Stock)
         tools.HandleBadRequest(w, errors.New("stock cannot be negative"))
         return
     }
@@ -202,11 +194,8 @@ func updateProductStockHandler(w http.ResponseWriter, r *http.Request) {
         s.Stock, id,
     )
     if err != nil {
-        log.Printf("Database update error for product ID %s: %v", id, err)
         tools.HandleInternalServerError(w, err)
         return
     }
-
-    log.Printf("Successfully updated stock for product ID %s to %d", id, s.Stock)
     w.WriteHeader(http.StatusNoContent)
 }
