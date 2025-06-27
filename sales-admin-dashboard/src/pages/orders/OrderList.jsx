@@ -3,19 +3,30 @@ import Card, { CardHeader, CardContent } from "../../components/common/Card";
 import Button from "../../components/common/Button";
 import InputField from "../../components/common/InputField";
 import { useNavigate } from "react-router-dom";
-import { deleteOrder, fetchOrders, searchOrders } from "../../features/orders/orderSlice";
+import {
+  deleteOrder,
+  fetchOrders,
+  searchOrders,
+} from "../../features/orders/orderSlice";
 import { useDispatch } from "react-redux";
 
 const OrderList = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [orders, setOrders] = useState([]);
+  const [paginatedOrders, setPaginatedOrders] = useState([]);
   const [loading, setLoading] = useState(false);
-
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
-
   const dispatch = useDispatch();
+
+  const paginate = (items, pageSize) => {
+    const pages = [];
+    for (let i = 0; i < items.length; i += pageSize) {
+      pages.push(items.slice(i, i + pageSize));
+    }
+    return pages;
+  };
 
   const handleSearchChange = async (e) => {
     const value = e.target.value;
@@ -25,36 +36,37 @@ const OrderList = () => {
       if (value) {
         const data = await dispatch(searchOrders(value)).unwrap();
         setOrders(data);
+        setPaginatedOrders(paginate(data, limit));
+        setPage(1);
       } else {
-        const data = await dispatch(fetchOrders()).unwrap();
-        const ordersArray = Array.isArray(data) ? data : data.orders || [];
-
-        const uniqueOrdersMap = new Map();
-        ordersArray.forEach((order) => {
-          if (!uniqueOrdersMap.has(order.orderId)) {
-            uniqueOrdersMap.set(order.orderId, order);
-          }
-        });
-        const uniqueOrders = Array.from(uniqueOrdersMap.values());
-
-        setOrders(uniqueOrders);
+        await getOrders();
       }
     } catch (error) {
       setOrders([]);
+      setPaginatedOrders([]);
     }
     setLoading(false);
   };
 
   const handlePageChange = (newPage) => setPage(newPage);
   const handleLimitChange = (e) => setLimit(Number(e.target.value));
-  const handleViewOrder = (orderId) => {
-    navigate(`/orders/${orderId}`);
-  };
+  const handleViewOrder = (orderId) => navigate(`/orders/${orderId}`);
+
   const handleDeleteOrder = async (orderId) => {
     try {
       await dispatch(deleteOrder(orderId)).unwrap();
-      const data = await dispatch(fetchOrders()).unwrap();
+      await getOrders();
+    } catch (error) {
+      console.error("Failed to delete or re-fetch orders:", error);
+    }
+  };
 
+  const handleNewOrder = () => navigate("/orders/new");
+
+  const getOrders = async () => {
+    setLoading(true);
+    try {
+      const data = await dispatch(fetchOrders()).unwrap();
       const ordersArray = Array.isArray(data) ? data : data.orders || [];
 
       const uniqueOrdersMap = new Map();
@@ -66,39 +78,19 @@ const OrderList = () => {
 
       const uniqueOrders = Array.from(uniqueOrdersMap.values());
       setOrders(uniqueOrders);
+      setPaginatedOrders(paginate(uniqueOrders, limit));
+      setPage(1);
     } catch (error) {
-      console.error("Failed to delete or re-fetch orders:", error);
+      console.error("Failed to fetch orders:", error);
+      setOrders([]);
+      setPaginatedOrders([]);
     }
-  };
-  const handleNewOrder = () => {
-    navigate("/orders/new");
+    setLoading(false);
   };
 
   useEffect(() => {
-    const getOrders = async () => {
-      setLoading(true);
-      try {
-        const data = await dispatch(fetchOrders()).unwrap();
-
-        const ordersArray = Array.isArray(data) ? data : data.orders || [];
-
-        const uniqueOrdersMap = new Map();
-        ordersArray.forEach((order) => {
-          if (!uniqueOrdersMap.has(order.orderId)) {
-            uniqueOrdersMap.set(order.orderId, order);
-          }
-        });
-        const uniqueOrders = Array.from(uniqueOrdersMap.values());
-
-        setOrders(uniqueOrders);
-      } catch (error) {
-        console.error("Failed to fetch orders:", error);
-        setOrders([]);
-      }
-      setLoading(false);
-    };
     getOrders();
-  }, [dispatch]);
+  }, [dispatch, limit]);
 
   return (
     <Card>
@@ -141,14 +133,14 @@ const OrderList = () => {
                   Loading...
                 </td>
               </tr>
-            ) : !Array.isArray(orders) || orders.length === 0 ? (
+            ) : paginatedOrders.length === 0 || !paginatedOrders[page - 1] ? (
               <tr>
                 <td colSpan={6} style={{ padding: "8px", textAlign: "center" }}>
                   No orders found.
                 </td>
               </tr>
             ) : (
-              orders.map((order) => (
+              paginatedOrders[page - 1].map((order) => (
                 <tr key={order.orderId}>
                   <td style={{ padding: "8px 16px" }}>{order.orderId}</td>
                   <td style={{ padding: "8px 16px" }}>{order.customerId}</td>
@@ -195,7 +187,12 @@ const OrderList = () => {
             Previous
           </Button>
           <span style={{ margin: "0 8px" }}>Page {page}</span>
-          <Button onClick={() => handlePageChange(page + 1)}>Next</Button>
+          <Button
+            disabled={page >= paginatedOrders.length}
+            onClick={() => handlePageChange(page + 1)}
+          >
+            Next
+          </Button>
         </div>
       </CardContent>
     </Card>
