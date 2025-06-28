@@ -1,3 +1,4 @@
+// General theme for the entire website.
 export const theme = {
   colors: {
     primary: '#3f51b5',

@@ -1,3 +1,4 @@
+//All frontend API calls for authentication are loaded in this file.
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { jwtDecode } from "jwt-decode";
 import api from "../../services/api";

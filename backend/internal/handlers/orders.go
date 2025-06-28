@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi"
 )
 
+// createOrderHandler creates a new order with multiple products in the database
 func createOrderHandler(w http.ResponseWriter, r *http.Request) {
 	var order models.Order
 	if err := json.NewDecoder(r.Body).Decode(&order); err != nil {
@@ -60,6 +61,7 @@ func createOrderHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+// getOrdersHandler gets a list of orders with search and pagination
 func getOrdersHandler(w http.ResponseWriter, r *http.Request) {
 	search := strings.TrimSpace(r.URL.Query().Get("search"))
 	pageStr := r.URL.Query().Get("page")
@@ -142,6 +144,7 @@ func getOrdersHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// getOrderByIDHandler gets a single order with all its product items by order ID
 func getOrderByIDHandler(w http.ResponseWriter, r *http.Request) {
 	orderID := chi.URLParam(r, "id")
 
@@ -183,6 +186,7 @@ func getOrderByIDHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(order)
 }
 
+// deleteOrderHandler deletes an order and all its product items from the database
 func deleteOrderHandler(w http.ResponseWriter, r *http.Request) {
 	orderID := chi.URLParam(r, "id")
 	if orderID == "" {
@@ -217,6 +221,7 @@ func deleteOrderHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// searchOrdersHandler searches for orders with pagination
 func searchOrdersHandler(w http.ResponseWriter, r *http.Request) {
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
 	pageStr := r.URL.Query().Get("page")
@@ -324,6 +329,7 @@ func searchOrdersHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// getTotalRevenueHandler returns the total revenue from all orders
 func getTotalRevenueHandler(w http.ResponseWriter, r *http.Request) {
 	var totalRevenue float64
 	err := tools.DB.QueryRow(
@@ -338,6 +344,7 @@ func getTotalRevenueHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]float64{"totalRevenue": totalRevenue})
 }
 
+// getTotalOrdersHandler returns the total number of orders
 func getTotalOrdersHandler(w http.ResponseWriter, r *http.Request) {
 	var totalOrders int
 	err := tools.DB.QueryRow(
@@ -352,6 +359,7 @@ func getTotalOrdersHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]int{"totalOrders": totalOrders})
 }
 
+// getRecentOrdersHandler returns the 3 most recently created orders
 func getRecentOrdersHandler(w http.ResponseWriter, r *http.Request) {
 	rows, err := tools.DB.Query(
 		`SELECT orderId, customerId, userId, totalPrice, createdAt

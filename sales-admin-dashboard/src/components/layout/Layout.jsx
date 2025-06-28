@@ -1,3 +1,4 @@
+//General layout that is used for all pages but login on this website.
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import styled from "@emotion/styled";

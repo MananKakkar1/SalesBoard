@@ -1,2 +1,0 @@
-# min-manan
-# about

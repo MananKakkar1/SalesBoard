@@ -1,3 +1,4 @@
+//Common card component used throughout the website for better organization.
 import styled from '@emotion/styled';
 
 const Card = styled.div`

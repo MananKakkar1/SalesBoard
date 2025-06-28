@@ -10,11 +10,13 @@ import {
   fetchProducts,
 } from "../../features/products/productSlice";
 
+// fetchProductById returns a product based on a given productId
 const fetchProductById = async (id, dispatch) => {
   const products = await dispatch(fetchProducts()).unwrap();
   return products.find((p) => String(p.id) === String(id));
 };
 
+// Initial state of the product form
 const initialState = {
   name: "",
   price: "",
@@ -29,6 +31,7 @@ const ProductForm = () => {
   const [form, setForm] = useState(initialState);
   const [errors, setErrors] = useState({});
 
+  // If editing a current product, fetch its information by its productId
   useEffect(() => {
     if (id) {
       fetchProductById(id, dispatch).then((data) => {
@@ -37,6 +40,7 @@ const ProductForm = () => {
     }
   }, [id, dispatch]);
 
+  // Validation function using regex and basic numerical comparisons to determine if the user filled out the product form correctly or not
   const validate = () => {
     const priceRegex = /^\d+(\.\d+)?$/;
     const stockRegex = /^\d+$/;
@@ -65,9 +69,11 @@ const ProductForm = () => {
     return errs;
   };
 
+  // handleChange shows the change in product form based on user input
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
+  // handleSubmit checks to either update product information if editing or create a product otherwise and navigates back to the product list page
   const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = validate();

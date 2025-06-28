@@ -1,3 +1,4 @@
+// API interceptors configuration file
 import axios from 'axios';
 
 const API_URL = 'http://localhost:8080';
@@ -25,7 +26,7 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // If we get a 401 response, log out the user
+    // If we receive a 401 response, log out the user
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('token');
       // Redirect to login page if not already there

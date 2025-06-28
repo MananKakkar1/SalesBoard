@@ -1,3 +1,5 @@
+// This is the ProductList page, which can only be accessed through the dashboard and sidebar. 
+// This page displays a table of products in the database and allows CRUD operations to be performed on each product.
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Card, { CardHeader, CardContent } from "../../components/common/Card";
@@ -21,14 +23,17 @@ const ProductList = () => {
 
   const productsArray = Array.isArray(products) ? products : [];
 
+  // Navigate to ProductForm page to create a new product
   const handleNewProduct = () => {
     navigate("/products/new");
   };
 
+  // Navigate to ProductForm page to edit a product with productId
   const handleEditProduct = (id) => {
     navigate(`/products/${id}`);
   };
 
+  // handleDeleteProduct deletes a product based on its productId in the database and loads all products to show the change
   const handleDeleteProduct = async (id) => {
     setLoading(true);
     try {
@@ -40,6 +45,7 @@ const ProductList = () => {
     setLoading(false);
   };
 
+  // handleSearchChange either searches for products based on "value" entered by a user or fetches all products if "value" does not exist and there is no query
   const handleSearchChange = async (e) => {
     const value = e.target.value;
     setSearch(value);
@@ -59,17 +65,20 @@ const ProductList = () => {
     setLoading(false);
   };
 
+  // handlePageChange changes the page and reloads products based on which page is now selected (Pagination)
   const handlePageChange = (newPage) => {
     setPage(newPage);
     loadProducts(newPage);
   };
 
+  // handlePageSizeChange changes the size of the page based on user input and reloads products based on the size of the page from the database (Pagination)
   const handlePageSizeChange = (newPageSize) => {
     setPageSize(newPageSize);
     setPage(1);
     loadProducts(1, newPageSize);
   };
 
+  // loadProducts loads products onto the page either by searching for specific products in the database based on a query or fetches all products if there is no query
   const loadProducts = async (
     currentPage = page,
     currentPageSize = pageSize

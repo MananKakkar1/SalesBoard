@@ -1,3 +1,4 @@
+//Common button component used throughout the website.
 import styled from '@emotion/styled';
 
 const Button = styled.button`

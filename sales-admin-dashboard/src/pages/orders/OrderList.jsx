@@ -1,3 +1,6 @@
+// This is the OrderList page, which is only accessed through the dashboard and sidebar via the Orders tab. 
+// This page lists all orders and allows Create and Delete operations on each order. 
+// This page also allows users to view order details via the "View" button.
 import React, { useEffect, useState } from "react";
 import Card, { CardHeader, CardContent } from "../../components/common/Card";
 import Button from "../../components/common/Button";
@@ -21,6 +24,8 @@ const OrderList = () => {
 
   const ordersArray = Array.isArray(orders) ? orders : [];
 
+  // handleSearchChange either searches for specific queries set by 
+  // the user or fetches all orders if the search bar is empty
   const handleSearchChange = async (e) => {
     const value = e.target.value;
     setSearch(value);
@@ -39,20 +44,24 @@ const OrderList = () => {
     }
     setLoading(false);
   };
-
+  
+  // Sets the page number and calls the backend to loadOrders from that specific page (Pagination)
   const handlePageChange = (newPage) => {
     setPage(newPage);
     loadOrders(newPage);
   };
-
+  
+  // Sets the page size from user input and refreshes the page to the first page, acting as a page refresh (Pagination)
   const handlePageSizeChange = (newPageSize) => {
     setPageSize(newPageSize);
     setPage(1);
     loadOrders(1, newPageSize);
   };
 
+  // Navigate to view order page depending on the orderId selected
   const handleViewOrder = (orderId) => navigate(`/orders/${orderId}`);
 
+  // handleDeleteOrder deletes the selected order from the database and all orders are then fetched again to show the update
   const handleDeleteOrder = async (orderId) => {
     try {
       await dispatch(deleteOrder(orderId)).unwrap();
@@ -62,8 +71,10 @@ const OrderList = () => {
     }
   };
 
+  // Navigate to OrderForm page to create a new order
   const handleNewOrder = () => navigate("/orders/new");
 
+  // loadOrders either fetches orders based on "search" which is the user's query or fetches all orders if there is no query
   const loadOrders = async (currentPage = page, currentPageSize = pageSize) => {
     setLoading(true);
     try {

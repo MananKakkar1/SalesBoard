@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi"
 )
 
+// createCustomerHandler creates a new customer in the database
 func createCustomerHandler(w http.ResponseWriter, r *http.Request) {
 	var customer models.Customer
 	if err := json.NewDecoder(r.Body).Decode(&customer); err != nil {
@@ -35,6 +36,7 @@ func createCustomerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// getCustomersHandler gets a list of customers with search and pagination
 func getCustomersHandler(w http.ResponseWriter, r *http.Request) {
 	search := strings.TrimSpace(r.URL.Query().Get("search"))
 	pageStr := r.URL.Query().Get("page")
@@ -117,6 +119,7 @@ func getCustomersHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// getCustomerByIdHandler gets a single customer by their ID
 func getCustomerByIdHandler(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	var c models.Customer
@@ -136,6 +139,7 @@ func getCustomerByIdHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(c)
 }
 
+// updateCustomerDataHandler updates an existing customer's information
 func updateCustomerDataHandler(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	var c models.Customer
@@ -158,6 +162,7 @@ func updateCustomerDataHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// deleteCustomerHandler deletes a customer from the database
 func deleteCustomerHandler(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	_, err := tools.DB.Exec("DELETE FROM customers WHERE id = ?", id)
@@ -167,6 +172,7 @@ func deleteCustomerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// searchCustomersHandler searches for customers with pagination
 func searchCustomersHandler(w http.ResponseWriter, r *http.Request) {
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
 	pageStr := r.URL.Query().Get("page")
@@ -250,6 +256,7 @@ func searchCustomersHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// getTotalCustomersHandler returns the total number of customers
 func getTotalCustomersHandler(w http.ResponseWriter, r *http.Request) {
 	var count int
 	err := tools.DB.QueryRow("SELECT COUNT(*) FROM customers").Scan(&count)
@@ -261,6 +268,7 @@ func getTotalCustomersHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]int{"totalCustomers": count})
 }
 
+// getRecentCustomersHandler returns the 3 most recently added customers
 func getRecentCustomersHandler(w http.ResponseWriter, r *http.Request) {
 	rows, err := tools.DB.Query(
 		"SELECT id, name, email, phone, address FROM customers ORDER BY id DESC LIMIT 3",
@@ -285,6 +293,7 @@ func getRecentCustomersHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(customers)
 }
 
+// searchCustomersSimpleHandler searches for customers without pagination (for dropdowns)
 func searchCustomersSimpleHandler(w http.ResponseWriter, r *http.Request) {
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
 

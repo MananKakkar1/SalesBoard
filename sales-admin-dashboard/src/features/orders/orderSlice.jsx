@@ -1,3 +1,4 @@
+//All frontend API calls for orders are loaded in this file.
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../../services/api";
 

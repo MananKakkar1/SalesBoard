@@ -1,3 +1,4 @@
+//This is the login page that the user will always visit first. 
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -61,6 +62,7 @@ const Login = () => {
     };
   }, [isAuthenticated, navigate, dispatch]);
   
+  //Validate Form by making username and password required for submission.
   const validateForm = () => {
     const newErrors = {};
     
@@ -76,6 +78,7 @@ const Login = () => {
     return Object.keys(newErrors).length === 0;
   };
   
+  //Submit form by sending information to the backend through login thunk
   const handleSubmit = (e) => {
     e.preventDefault();
     

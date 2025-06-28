@@ -1,3 +1,4 @@
+// This is the dashboard, which is the default page that users visit after signing in from the login page.
 import React, { useEffect, useState } from "react";
 import Layout from "../../components/layout/Layout";
 import Button from "../../components/common/Button";
@@ -20,6 +21,7 @@ const Dashboard = () => {
   const [recentOrders, setRecentOrders] = useState([]);
   const [recentCustomers, setRecentCustomers] = useState([]);
   const [recentProducts, setRecentProducts] = useState([]);
+  // Initial stats are set to null to avoid showing any dummy/fake data
   const [stats, setStats] = useState({
     customers: null,
     orders: null,
@@ -27,45 +29,58 @@ const Dashboard = () => {
     revenue: null,
   });
 
+  // Navigate to CustomerForm to create a new customer
   const handleAddCustomer = () => navigate("/customers/new");
+  // Navigate to OrderForm to create a new order
   const handleAddOrder = () => navigate("/orders/new");
+  // Navigate to ProductForm to create a new product
   const handleAddProduct = () => navigate("/products/new");
 
+  // getTotalRevenue returns the total revenue of all orders from the database
   const getTotalRevenue = async () => {
     const data = await dispatch(fetchTotalRevenue()).unwrap();
     return data;
   };
 
+  // getTotalCustomers returns the total number of customers from the database
   const getTotalCustomers = async () => {
     const data = await dispatch(fetchTotalCustomers()).unwrap();
     return data;
   };
 
+  // getTotalOrders returns the total number of orders from the database
   const getTotalOrders = async () => {
     const data = await dispatch(fetchTotalOrders()).unwrap();
     return data;
   };
 
+  // getTotalProducts returns the total number of products from the database
   const getTotalProducts = async () => {
     const data = await dispatch(fetchTotalProducts()).unwrap();
     return data;
   };
 
+  // getThreeRecentProducts returns the 3 most recent products added to the database
   const getThreeRecentProducts = async () => {
     const data = await dispatch(fetchRecentProducts()).unwrap();
     return data;
   };
 
+  // getThreeRecentOrders returns the 3 most recent orders added to the database
   const getThreeRecentOrders = async () => {
     const data = await dispatch(fetchRecentOrders()).unwrap();
     return data;
   };
 
+  // getThreeRecentCustomers returns the 3 most recent customers added to the database
   const getThreeRecentCustomers = async () => {
     const data = await dispatch(fetchRecentCustomers()).unwrap();
     return data;
   };
 
+  // This useEffect is created to show dashboard data on the frontend.
+  // It calls all the API call handlers above and sets the data into their respective 
+  // fields to be displayed by the component.
   useEffect(() => {
     const loadDashboardData = async () => {
       try {

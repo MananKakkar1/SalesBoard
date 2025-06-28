@@ -1,3 +1,4 @@
+// Checks if the user is authorized to visit the current page
 import { Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 

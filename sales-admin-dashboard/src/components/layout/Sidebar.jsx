@@ -1,3 +1,4 @@
+//Sidebar component that is used throughout every page and is attached to the general layout of the website.
 import { NavLink } from 'react-router-dom';
 import styled from '@emotion/styled';
 

@@ -1,3 +1,4 @@
+//This is the OrderDetail page and can only be accessed by the OrderList page by pressing the view button next to a specific order. It shows all the order information that cannot be listed on the OrderList page.
 import React, { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useDispatch } from "react-redux";
@@ -11,6 +12,7 @@ const OrderDetail = () => {
 
   const orderId = location.pathname.split("/").pop();
 
+  //Fetching order information based on its orderId and update this information from the database on refresh/reload.
   useEffect(() => {
     const getOrder = async () => {
       if (!orderId) {

@@ -1,3 +1,4 @@
+//Common StatCard used multiple times throughout the dashboard for better organization.
 import React from "react";
 import styled from "@emotion/styled";
 import Card, { CardContent } from "./Card";

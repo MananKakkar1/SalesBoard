@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi"
 )
 
+// createProductHandler creates a new product in the database
 func createProductHandler(w http.ResponseWriter, r *http.Request) {
 	var product models.Product
 	if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
@@ -35,6 +36,7 @@ func createProductHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// getProductsHandler gets a list of products with search and pagination
 func getProductsHandler(w http.ResponseWriter, r *http.Request) {
 	search := strings.TrimSpace(r.URL.Query().Get("search"))
 	pageStr := r.URL.Query().Get("page")
@@ -117,6 +119,7 @@ func getProductsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// getProductByIdHandler gets a single product by its ID
 func getProductByIdHandler(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	var p models.Product
@@ -136,6 +139,7 @@ func getProductByIdHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(p)
 }
 
+// updateProductHandler updates an existing product's information
 func updateProductHandler(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	var p models.Product
@@ -158,6 +162,7 @@ func updateProductHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// deleteProductHandler deletes a product from the database
 func deleteProductHandler(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	_, err := tools.DB.Exec("DELETE FROM products WHERE id = ?", id)
@@ -167,6 +172,7 @@ func deleteProductHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// searchProductsHandler searches for products with pagination
 func searchProductsHandler(w http.ResponseWriter, r *http.Request) {
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
 	pageStr := r.URL.Query().Get("page")
@@ -250,6 +256,7 @@ func searchProductsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// getTotalProductsHandler returns the total number of products
 func getTotalProductsHandler(w http.ResponseWriter, r *http.Request) {
 	var count int
 	err := tools.DB.QueryRow("SELECT COUNT(*) FROM products").Scan(&count)
@@ -261,6 +268,7 @@ func getTotalProductsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]int{"totalProducts": count})
 }
 
+// getRecentProductsHandler returns the 3 most recently added products
 func getRecentProductsHandler(w http.ResponseWriter, r *http.Request) {
 	rows, err := tools.DB.Query(
 		"SELECT id, name, price, stock FROM products ORDER BY id DESC LIMIT 3",
@@ -288,6 +296,7 @@ type StockUpdate struct {
 	Stock int `json:"stock"`
 }
 
+// updateProductStockHandler updates only the stock quantity of a product
 func updateProductStockHandler(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	var s StockUpdate
@@ -312,6 +321,7 @@ func updateProductStockHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// searchProductsSimpleHandler searches for products without pagination (for dropdowns)
 func searchProductsSimpleHandler(w http.ResponseWriter, r *http.Request) {
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
 

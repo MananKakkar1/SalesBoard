@@ -28,8 +28,7 @@ type LoginResponse struct {
 
 // LoginHandler handles POST /api/login requests.
 // It is an endpoint of /api/login requests and extracts the login credentials from the request body, checks them against the database,
-// and returns a JWT token if the credentials are valid. If authentication fails, it returns
-// a 401 Unauthorized error.
+// and returns a JWT token if the credentials are valid. If authentication fails, it returns a 401 Unauthorized error.
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

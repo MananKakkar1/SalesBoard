@@ -1,3 +1,5 @@
+// This is the CustomerList page, which is the default page linked to the Customers tab in the Sidebar. 
+// This page lists all customers and allows CRUD operations to be performed on each customer.
 import { useNavigate } from "react-router-dom";
 import Card, { CardHeader, CardContent } from "../../components/common/Card";
 import Button from "../../components/common/Button";
@@ -22,14 +24,18 @@ const CustomerList = () => {
   const [pageSize, setPageSize] = useState(20);
   const customersArray = Array.isArray(customers) ? customers : [];
 
+  // Navigate to CustomerForm to create a new customer
   const handleNewCustomer = () => {
     navigate("/customers/new");
   };
 
+  // Navigate to CustomerForm to edit a customer based on their CustomerID
   const handleEditCustomer = (id) => {
     navigate(`/customers/${id}/edit`);
   };
 
+  // Delete a customer from the database through the deleteCustomer thunk and fetch all 
+  // customers from the database again to show the changes
   const handleDeleteCustomer = async (id) => {
     setLoading(true);
     try {
@@ -41,6 +47,8 @@ const CustomerList = () => {
     setLoading(false);
   };
 
+  // handleSearchChange either searches for specific queries set by 
+  // the user or fetches all customers if the search bar is empty
   const handleSearchChange = async (e) => {
     const value = e.target.value;
     setSearch(value);
@@ -60,17 +68,23 @@ const CustomerList = () => {
     setLoading(false);
   };
 
+  // Sets the page number and calls the backend to loadCustomers from that specific page (Pagination)
   const handlePageChange = (newPage) => {
     setPage(newPage);
     loadCustomers(newPage);
   };
 
+  // Sets the page size from user input and refreshes the page to the first page, acting as a page refresh (Pagination)
   const handlePageSizeChange = (newPageSize) => {
     setPageSize(newPageSize);
     setPage(1);
     loadCustomers(1, newPageSize);
   };
 
+  // loadCustomers fetches customers from the backend with 2 optional parameters:
+  // currentPage: The current page number
+  // currentPageSize: Number of customers to be displayed on this page
+  // It returns the customers that fit on the current page
   const loadCustomers = async (
     currentPage = page,
     currentPageSize = pageSize
@@ -99,6 +113,7 @@ const CustomerList = () => {
     setLoading(false);
   };
 
+  // Update customers from backend on refresh
   useEffect(() => {
     loadCustomers();
   }, [dispatch]);

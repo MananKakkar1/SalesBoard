@@ -1,3 +1,4 @@
+// This file routes all the pages and also helps create a proper user flow.
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import Layout from "../components/layout/Layout";
 import Login from "../pages/auth/Login";

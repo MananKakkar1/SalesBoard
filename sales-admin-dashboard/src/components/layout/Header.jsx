@@ -1,3 +1,4 @@
+//Header for all pages on this website.
 import styled from '@emotion/styled';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../../features/auth/authSlice';

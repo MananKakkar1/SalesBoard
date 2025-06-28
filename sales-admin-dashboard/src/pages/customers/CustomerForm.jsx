@@ -1,3 +1,5 @@
+// This is the CustomerForm page where users can create and update customer data. 
+// This page can only be accessed through the dashboard or the CustomerList page.
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Card, { CardHeader, CardContent } from "../../components/common/Card";
@@ -15,6 +17,7 @@ const fetchCustomerById = async (id) => {
   return response.data;
 };
 
+// Initial state of the form to be empty each time the user visits this page
 const initialState = {
   name: "",
   email: "",
@@ -38,6 +41,10 @@ const CustomerForm = () => {
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
+  // Validate customer form by checking email and phone number thoroughly 
+  // through regex to match proper email and US phone number format respectively.
+  // Adds a minimum requirement of 5 letters for address to count (Simple Check).
+  // No extra check for name, it is just required from the user.
   const validateForm = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const phoneRegex = /^(\+1\s?)?(\(?\d{3}\)?[\s.-]?)?\d{3}[\s.-]?\d{4}$/;
@@ -70,6 +77,9 @@ const CustomerForm = () => {
     return errs;
   };
 
+  // handleSubmit first checks if the user is editing the CustomerForm by checking if an "id" (CustomerID) exists in the URL.
+  // It sends an API call to updateCustomer if the user is editing customer information and creates a customer otherwise.
+  // On error, this function checks if the backend returns UNIQUE email, phone number, and address errors and alerts the user if this is the case.
   const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = validateForm();

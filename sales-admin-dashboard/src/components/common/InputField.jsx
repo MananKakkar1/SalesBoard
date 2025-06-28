@@ -1,3 +1,4 @@
+// Common input field component used for all forms throughout the website
 import styled from '@emotion/styled';
 
 const InputContainer = styled.div`

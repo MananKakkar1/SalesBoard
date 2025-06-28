@@ -1,3 +1,5 @@
+// This is the OrderForm page, which can only be accessed through the Dashboard or the OrderList page. 
+// This page displays the form used to create new orders and handles order creation by sending API calls to the backend.
 import React, { useState, useEffect } from "react";
 import Button from "../../components/common/Button";
 import InputField from "../../components/common/InputField";
@@ -16,6 +18,8 @@ import {
 } from "../../features/customers/customerSlice";
 import { createOrder } from "../../features/orders/orderSlice";
 
+// Keys for localStorage so that InputField data doesn't get lost on refresh 
+// (This is done so that selected customers and products don't disappear)
 const PRODUCTS_KEY = "orderFormProducts";
 const PRODUCT_QUERIES_KEY = "orderFormProductQueries";
 const CUSTOMER_QUERY_KEY = "orderFormCustomerQuery";
@@ -63,6 +67,7 @@ const OrderForm = () => {
     localStorage.setItem(CUSTOMER_QUERY_KEY, customerQuery);
   }, [customerQuery]);
 
+  // Add or remove selected customer from local storage depending on whether the user has deselected the customer or not
   useEffect(() => {
     if (selectedCustomer) {
       localStorage.setItem(
@@ -74,6 +79,7 @@ const OrderForm = () => {
     }
   }, [selectedCustomer]);
 
+  // Calculate total price on change of the quantity input field of a product
   useEffect(() => {
     setTotalPrice(
       products.reduce((total, p) => {
@@ -91,6 +97,7 @@ const OrderForm = () => {
     }
   }, []);
 
+  // handleCustomerSearchChange helps implement typeahead search for the customers search bar
   const handleCustomerSearchChange = async (e) => {
     const value = e.target.value;
     setCustomerQuery(value);
@@ -108,6 +115,9 @@ const OrderForm = () => {
     }
   };
 
+  // handleProductSearchChange helps implement typeahead search for the products search bar.
+  // It queries the database and returns products related to the query and only returns products which have a stock
+  // greater than 0
   const handleProductSearchChange = async (e, idx) => {
     const value = e.target.value;
 
@@ -142,6 +152,9 @@ const OrderForm = () => {
     }
   };
 
+  // handleOrderSubmit gathers all the orderData from various variables throughout the file and sends it to the backend
+  // using createOrder thunk. This function also updates each product's stock that was ordered depending on the quantity 
+  // of the product that was ordered. After sending the information, the entire form is reset for its next use.
   const handleOrderSubmit = async () => {
     if (!selectedCustomer) {
       console.error("No customer selected");
@@ -386,7 +399,7 @@ const OrderForm = () => {
                   const productRes = await dispatch(
                     fetchProductById(clonedProduct.productId)
                   ).unwrap();
-
+                  //If quantity selected exceeds stock of the product, limit the quantity to the maximum stock available.
                   if (productRes && clonedProduct.quantity > productRes.stock) {
                     alert(
                       "Quantity exceeds available stock, choose a lower quantity or choose another item."
