@@ -1,4 +1,4 @@
-module github.com/MananKakkar1/min-manan/backend
+module github.com/MananKakkar1/SalesBoard/backend
 
 go 1.24.4
 

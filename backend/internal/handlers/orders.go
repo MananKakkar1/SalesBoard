@@ -331,13 +331,16 @@ func searchOrdersHandler(w http.ResponseWriter, r *http.Request) {
 
 // getTotalRevenueHandler returns the total revenue from all orders
 func getTotalRevenueHandler(w http.ResponseWriter, r *http.Request) {
-	var totalRevenue float64
-	err := tools.DB.QueryRow(
-		`SELECT SUM(totalPrice) FROM orders`,
-	).Scan(&totalRevenue)
+	var sum sql.NullFloat64
+	err := tools.DB.QueryRow(`SELECT SUM(totalPrice) FROM orders`).Scan(&sum)
 	if err != nil {
 		tools.HandleInternalServerError(w, err)
 		return
+	}
+
+	totalRevenue := 0.0
+	if sum.Valid {
+		totalRevenue = sum.Float64
 	}
 
 	w.Header().Set("Content-Type", "application/json")
