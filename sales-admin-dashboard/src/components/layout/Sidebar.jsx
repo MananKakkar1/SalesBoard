@@ -51,7 +51,7 @@ const Sidebar = () => {
   return (
     <SidebarWrapper>
       <SidebarHeader>
-        Sales Admin
+        SalesBoard
       </SidebarHeader>
       
       <NavList>

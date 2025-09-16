@@ -275,3 +275,23 @@ const orderSlice = createSlice({
 });
 
 export default orderSlice.reducer;
+
+// ---------- SELECTORS (use these in your components) ----------
+export const selectOrdersState = (state) => state.orders;
+
+export const selectTotalRevenue = (state) =>
+  state.orders?.stats?.totalRevenue ?? 0;
+
+export const selectTotalOrders = (state) =>
+  state.orders?.stats?.totalOrders ?? 0;
+
+export const selectRecentOrders = (state) =>
+  Array.isArray(state.orders?.stats?.recentOrders)
+    ? state.orders.stats.recentOrders
+    : [];
+
+export const selectStatsStatus = (state) =>
+  state.orders?.stats?.status ?? "idle";
+
+export const selectStatsError = (state) =>
+  state.orders?.stats?.error ?? null;

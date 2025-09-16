@@ -23,64 +23,53 @@ const Dashboard = () => {
   const [recentProducts, setRecentProducts] = useState([]);
   // Initial stats are set to null to avoid showing any dummy/fake data
   const [stats, setStats] = useState({
-    customers: null,
-    orders: null,
-    products: null,
-    revenue: null,
+    customers: null, // expected to be an object from customers slice (e.g., { totalCustomers })
+    orders: null,    // now a NUMBER from orders slice
+    products: null,  // expected to be an object from products slice (e.g., { totalProducts })
+    revenue: null,   // now a NUMBER from orders slice
   });
 
-  // Navigate to CustomerForm to create a new customer
+  // Navigate helpers
   const handleAddCustomer = () => navigate("/customers/new");
-  // Navigate to OrderForm to create a new order
   const handleAddOrder = () => navigate("/orders/new");
-  // Navigate to ProductForm to create a new product
   const handleAddProduct = () => navigate("/products/new");
 
-  // getTotalRevenue returns the total revenue of all orders from the database
+  // Thunk wrappers
   const getTotalRevenue = async () => {
-    const data = await dispatch(fetchTotalRevenue()).unwrap();
+    const data = await dispatch(fetchTotalRevenue()).unwrap(); // number
     return data;
   };
 
-  // getTotalCustomers returns the total number of customers from the database
   const getTotalCustomers = async () => {
-    const data = await dispatch(fetchTotalCustomers()).unwrap();
+    const data = await dispatch(fetchTotalCustomers()).unwrap(); // likely { totalCustomers }
     return data;
   };
 
-  // getTotalOrders returns the total number of orders from the database
   const getTotalOrders = async () => {
-    const data = await dispatch(fetchTotalOrders()).unwrap();
+    const data = await dispatch(fetchTotalOrders()).unwrap(); // number
     return data;
   };
 
-  // getTotalProducts returns the total number of products from the database
   const getTotalProducts = async () => {
-    const data = await dispatch(fetchTotalProducts()).unwrap();
+    const data = await dispatch(fetchTotalProducts()).unwrap(); // likely { totalProducts }
     return data;
   };
 
-  // getThreeRecentProducts returns the 3 most recent products added to the database
   const getThreeRecentProducts = async () => {
-    const data = await dispatch(fetchRecentProducts()).unwrap();
+    const data = await dispatch(fetchRecentProducts()).unwrap(); // array
     return data;
   };
 
-  // getThreeRecentOrders returns the 3 most recent orders added to the database
   const getThreeRecentOrders = async () => {
-    const data = await dispatch(fetchRecentOrders()).unwrap();
+    const data = await dispatch(fetchRecentOrders()).unwrap(); // array
     return data;
   };
 
-  // getThreeRecentCustomers returns the 3 most recent customers added to the database
   const getThreeRecentCustomers = async () => {
-    const data = await dispatch(fetchRecentCustomers()).unwrap();
+    const data = await dispatch(fetchRecentCustomers()).unwrap(); // array
     return data;
   };
 
-  // This useEffect is created to show dashboard data on the frontend.
-  // It calls all the API call handlers above and sets the data into their respective 
-  // fields to be displayed by the component.
   useEffect(() => {
     const loadDashboardData = async () => {
       try {
@@ -89,9 +78,9 @@ const Dashboard = () => {
           totalOrders,
           totalProducts,
           totalRevenue,
-          recentOrders,
-          recentCustomers,
-          recentProducts,
+          recentOrdersRes,
+          recentCustomersRes,
+          recentProductsRes,
         ] = await Promise.all([
           getTotalCustomers(),
           getTotalOrders(),
@@ -103,22 +92,22 @@ const Dashboard = () => {
         ]);
 
         setStats({
-          customers: totalCustomers,
-          orders: totalOrders,
-          products: totalProducts,
-          revenue: totalRevenue,
+          customers: totalCustomers,         // likely { totalCustomers }
+          orders: Number(totalOrders ?? 0),  // number
+          products: totalProducts,           // likely { totalProducts }
+          revenue: Number(totalRevenue ?? 0) // number
         });
 
-        setRecentOrders(recentOrders);
-        setRecentCustomers(recentCustomers);
-        setRecentProducts(recentProducts);
+        setRecentOrders(Array.isArray(recentOrdersRes) ? recentOrdersRes : []);
+        setRecentCustomers(Array.isArray(recentCustomersRes) ? recentCustomersRes : []);
+        setRecentProducts(Array.isArray(recentProductsRes) ? recentProductsRes : []);
       } catch (error) {
         console.error("Failed to fetch dashboard stats", error);
       }
     };
 
     loadDashboardData();
-  }, []);
+  }, [dispatch]);
 
   return (
     <div
@@ -149,7 +138,8 @@ const Dashboard = () => {
           />
           <StatCard
             title="Total Orders"
-            value={stats.orders?.totalOrders}
+            // CHANGED: use the number directly
+            value={Number.isFinite(stats.orders) ? stats.orders : null}
             icon="📦"
           />
           <StatCard
@@ -159,9 +149,10 @@ const Dashboard = () => {
           />
           <StatCard
             title="Total Revenue"
+            // CHANGED: use the number directly and format
             value={
-              stats.revenue?.totalRevenue
-                ? `$${stats.revenue.totalRevenue.toFixed(2)}`
+              Number.isFinite(stats.revenue)
+                ? `$${stats.revenue.toFixed(2)}`
                 : null
             }
             icon="💰"
@@ -241,7 +232,7 @@ const Dashboard = () => {
         >
           <RecentCard
             title="Recent Orders"
-            items={recentOrders}
+            items={Array.isArray(recentOrders) ? recentOrders : []}
             emptyMessage="No recent orders"
             renderItem={(order) => (
               <div
@@ -262,14 +253,19 @@ const Dashboard = () => {
                 >
                   <strong>Order #{order.orderId}</strong>
                   <span style={{ color: "#4caf50", fontWeight: 600 }}>
-                    ${order.totalPrice.toFixed(2)}
+                    $
+                    {Number.isFinite(order.totalPrice)
+                      ? order.totalPrice.toFixed(2)
+                      : "0.00"}
                   </span>
                 </div>
                 <div
                   style={{ fontSize: "0.875rem", color: "rgba(0, 0, 0, 0.54)" }}
                 >
                   Customer ID: {order.customerId} •{" "}
-                  {new Date(order.createdAt).toLocaleDateString()}
+                  {order.createdAt
+                    ? new Date(order.createdAt).toLocaleDateString()
+                    : ""}
                 </div>
               </div>
             )}
@@ -277,7 +273,7 @@ const Dashboard = () => {
 
           <RecentCard
             title="Recent Customers"
-            items={recentCustomers}
+            items={Array.isArray(recentCustomers) ? recentCustomers : []}
             emptyMessage="No recent customers"
             renderItem={(customer) => (
               <div
@@ -303,7 +299,7 @@ const Dashboard = () => {
 
           <RecentCard
             title="Recent Products"
-            items={recentProducts}
+            items={Array.isArray(recentProducts) ? recentProducts : []}
             emptyMessage="No recent products"
             renderItem={(product) => (
               <div
@@ -316,7 +312,7 @@ const Dashboard = () => {
                 }}
               >
                 <div style={{ fontWeight: 600 }}>{product.name}</div>
-                {product.price && (
+                {Number.isFinite(product?.price) && (
                   <div
                     style={{
                       fontSize: "0.875rem",
