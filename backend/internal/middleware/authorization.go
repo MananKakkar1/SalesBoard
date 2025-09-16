@@ -7,7 +7,7 @@ import (
 	"strings"
 	"errors"
 
-	"github.com/MananKakkar1/min-manan/backend/internal/tools"
+	"github.com/MananKakkar1/SalesBoard/backend/internal/tools"
 	"github.com/golang-jwt/jwt/v5"
 )
 

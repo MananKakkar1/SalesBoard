@@ -10,7 +10,7 @@ import (
     "database/sql"
 
     "github.com/golang-jwt/jwt/v5"
-    "github.com/MananKakkar1/min-manan/backend/internal/tools"
+    "github.com/MananKakkar1/SalesBoard/backend/internal/tools"
 )
 
 // LoginRequest represents the expected JSON payload for login requests.

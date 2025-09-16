@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/MananKakkar1/min-manan/backend/internal/models"
-	"github.com/MananKakkar1/min-manan/backend/internal/tools"
+	"github.com/MananKakkar1/SalesBoard/backend/internal/models"
+	"github.com/MananKakkar1/SalesBoard/backend/internal/tools"
 	"github.com/go-chi/chi"
 )
 

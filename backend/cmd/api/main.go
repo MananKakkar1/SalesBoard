@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/MananKakkar1/min-manan/backend/internal/handlers"
-	"github.com/MananKakkar1/min-manan/backend/internal/tools"
+	"github.com/MananKakkar1/SalesBoard/backend/internal/handlers"
+	"github.com/MananKakkar1/SalesBoard/backend/internal/tools"
 	"github.com/go-chi/chi"
 	"github.com/joho/godotenv"
 	logrus "github.com/sirupsen/logrus"
