@@ -40,7 +40,7 @@ const Header = ({ toggleSidebar }) => {
   
   return (
     <HeaderWrapper>
-      <Logo>Sales Admin</Logo>
+      <Logo>SalesBoard</Logo>
       
       <UserSection>
         {user && <UserName>Welcome, {user.name}</UserName>}

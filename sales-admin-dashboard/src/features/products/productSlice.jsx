@@ -165,6 +165,15 @@ export const searchProductsSimple = createAsyncThunk(
   }
 );
 
+export const getLowStock = createAsyncThunk("products/getLowStock", async (threshold = 5, { rejectWithValue }) => {
+  try {
+    const res = await api.get(`/api/products/low-stock?threshold=${threshold}`);
+    return Array.isArray(res.data) ? res.data : [];
+  } catch (err) {
+    return rejectWithValue(err.response?.data?.error || "Failed to fetch low stock");
+  }
+});
+
 const productSlice = createSlice({
   name: "products",
   initialState: {

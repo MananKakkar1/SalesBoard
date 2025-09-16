@@ -13,6 +13,8 @@ import { getTotalProducts as fetchTotalProducts } from "../../features/products/
 import { getRecentOrders as fetchRecentOrders } from "../../features/orders/orderSlice";
 import { getRecentProducts as fetchRecentProducts } from "../../features/products/productSlice";
 import { getRecentCustomers as fetchRecentCustomers } from "../../features/customers/customerSlice";
+// 👇 New import (if you don't have it yet, add the thunk to productSlice as described earlier)
+import { getLowStock as fetchLowStock } from "../../features/products/productSlice";
 import { useDispatch } from "react-redux";
 
 const Dashboard = () => {
@@ -21,12 +23,15 @@ const Dashboard = () => {
   const [recentOrders, setRecentOrders] = useState([]);
   const [recentCustomers, setRecentCustomers] = useState([]);
   const [recentProducts, setRecentProducts] = useState([]);
+  const [lowStock, setLowStock] = useState([]); // 👈 NEW
+  const LOW_STOCK_THRESHOLD = 5; // 👈 configurable threshold
+
   // Initial stats are set to null to avoid showing any dummy/fake data
   const [stats, setStats] = useState({
     customers: null, // expected to be an object from customers slice (e.g., { totalCustomers })
-    orders: null,    // now a NUMBER from orders slice
+    orders: null,    // number from orders slice
     products: null,  // expected to be an object from products slice (e.g., { totalProducts })
-    revenue: null,   // now a NUMBER from orders slice
+    revenue: null,   // number from orders slice
   });
 
   // Navigate helpers
@@ -41,7 +46,7 @@ const Dashboard = () => {
   };
 
   const getTotalCustomers = async () => {
-    const data = await dispatch(fetchTotalCustomers()).unwrap(); // likely { totalCustomers }
+    const data = await dispatch(fetchTotalCustomers()).unwrap(); // { totalCustomers }
     return data;
   };
 
@@ -51,7 +56,7 @@ const Dashboard = () => {
   };
 
   const getTotalProducts = async () => {
-    const data = await dispatch(fetchTotalProducts()).unwrap(); // likely { totalProducts }
+    const data = await dispatch(fetchTotalProducts()).unwrap(); // { totalProducts }
     return data;
   };
 
@@ -70,6 +75,16 @@ const Dashboard = () => {
     return data;
   };
 
+  // 👇 Optional: low stock fetch wrapper (returns array or null on failure)
+  const getLowStock = async (threshold = LOW_STOCK_THRESHOLD) => {
+    try {
+      const data = await dispatch(fetchLowStock(threshold)).unwrap(); // array
+      return data;
+    } catch {
+      return null; // let fallback logic handle it
+    }
+  };
+
   useEffect(() => {
     const loadDashboardData = async () => {
       try {
@@ -81,6 +96,7 @@ const Dashboard = () => {
           recentOrdersRes,
           recentCustomersRes,
           recentProductsRes,
+          lowStockRes, // 👈 try server-provided low-stock list
         ] = await Promise.all([
           getTotalCustomers(),
           getTotalOrders(),
@@ -89,18 +105,31 @@ const Dashboard = () => {
           getThreeRecentOrders(),
           getThreeRecentCustomers(),
           getThreeRecentProducts(),
+          getLowStock(LOW_STOCK_THRESHOLD), // may be null if thunk isn't implemented yet
         ]);
 
         setStats({
-          customers: totalCustomers,         // likely { totalCustomers }
-          orders: Number(totalOrders ?? 0),  // number
-          products: totalProducts,           // likely { totalProducts }
-          revenue: Number(totalRevenue ?? 0) // number
+          customers: totalCustomers,
+          orders: Number(totalOrders ?? 0),
+          products: totalProducts,
+          revenue: Number(totalRevenue ?? 0),
         });
 
-        setRecentOrders(Array.isArray(recentOrdersRes) ? recentOrdersRes : []);
-        setRecentCustomers(Array.isArray(recentCustomersRes) ? recentCustomersRes : []);
-        setRecentProducts(Array.isArray(recentProductsRes) ? recentProductsRes : []);
+        const recentOrdersSafe = Array.isArray(recentOrdersRes) ? recentOrdersRes : [];
+        const recentCustomersSafe = Array.isArray(recentCustomersRes) ? recentCustomersRes : [];
+        const recentProductsSafe = Array.isArray(recentProductsRes) ? recentProductsRes : [];
+
+        setRecentOrders(recentOrdersSafe);
+        setRecentCustomers(recentCustomersSafe);
+        setRecentProducts(recentProductsSafe);
+
+        // 👇 Low-stock: prefer API result; otherwise, fall back to filtering recent products
+        const fallbackLowStock =
+          recentProductsSafe.filter(
+            (p) => Number.isFinite(p?.stock) && p.stock <= LOW_STOCK_THRESHOLD
+          ) || [];
+
+        setLowStock(Array.isArray(lowStockRes) ? lowStockRes : fallbackLowStock);
       } catch (error) {
         console.error("Failed to fetch dashboard stats", error);
       }
@@ -138,7 +167,6 @@ const Dashboard = () => {
           />
           <StatCard
             title="Total Orders"
-            // CHANGED: use the number directly
             value={Number.isFinite(stats.orders) ? stats.orders : null}
             icon="📦"
           />
@@ -149,7 +177,6 @@ const Dashboard = () => {
           />
           <StatCard
             title="Total Revenue"
-            // CHANGED: use the number directly and format
             value={
               Number.isFinite(stats.revenue)
                 ? `$${stats.revenue.toFixed(2)}`
@@ -320,6 +347,42 @@ const Dashboard = () => {
                     }}
                   >
                     ${product.price.toFixed(2)}
+                  </div>
+                )}
+              </div>
+            )}
+          />
+
+          {/* 👇 NEW: Low Stock alert card */}
+          <RecentCard
+            title={`Low Stock (≤ ${LOW_STOCK_THRESHOLD})`}
+            items={Array.isArray(lowStock) ? lowStock : []}
+            emptyMessage="All good — no low stock items"
+            renderItem={(p) => (
+              <div
+                key={p.id}
+                style={{
+                  padding: 12,
+                  border: "1px solid rgba(255, 111, 0, 0.4)",
+                  borderRadius: 4,
+                  backgroundColor: "#fff8e1",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <strong>{p.name}</strong>
+                  <span style={{ fontWeight: 700 }}>
+                    Stock: {Number.isFinite(p?.stock) ? p.stock : 0}
+                  </span>
+                </div>
+                {Number.isFinite(p?.price) && (
+                  <div
+                    style={{
+                      marginTop: 4,
+                      fontSize: "0.875rem",
+                      color: "rgba(0, 0, 0, 0.54)",
+                    }}
+                  >
+                    ${p.price.toFixed(2)}
                   </div>
                 )}
               </div>
