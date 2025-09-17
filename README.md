@@ -1,4 +1,4 @@
-# SalesBoard — Sales Administration Dashboard
+# SalesBoard: Sales Administration Dashboard
 
 A full-stack web application for managing customers, products, and sales orders, complete with authentication, form validation, search, and pagination. Built with **React + Redux Toolkit** on the frontend and a **Go REST API with JWT** on the backend, using **SQLite** for data persistence.
 
