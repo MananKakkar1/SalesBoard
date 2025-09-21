@@ -75,6 +75,11 @@ const Sidebar = () => {
             Orders
           </StyledNavLink>
         </NavItem>
+        <NavItem>
+          <StyledNavLink to="/warehouses">
+            Warehouses
+          </StyledNavLink>
+        </NavItem>
       </NavList>
     </SidebarWrapper>
   );

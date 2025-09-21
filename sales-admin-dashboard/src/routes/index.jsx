@@ -11,6 +11,9 @@ import OrderForm from "../pages/orders/OrderForm";
 import OrderDetail from "../pages/orders/OrderDetail";
 import ProtectedRoute from "./ProtectedRoute";
 import Dashboard from "../pages/dashboard/Dashboard";
+import WarehouseList from "../pages/warehouses/WarehouseList";
+import WarehouseForm from "../pages/warehouses/WarehouseForm";
+import WarehouseDetail from "../pages/warehouses/WarehouseDetail";
 
 const router = createBrowserRouter([
   {
@@ -102,6 +105,38 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <OrderDetail />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "warehouses",
+        element: (
+          <ProtectedRoute>
+            <WarehouseList />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "warehouses/new",
+        element: (
+          <ProtectedRoute>
+            <WarehouseForm />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "warehouses/:id",
+        element: (
+          <ProtectedRoute>
+            <WarehouseDetail />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "warehouses/:id/edit",
+        element: (
+          <ProtectedRoute>
+            <WarehouseForm />
           </ProtectedRoute>
         ),
       },

@@ -14,9 +14,13 @@ import { getRecentOrders as fetchRecentOrders } from "../../features/orders/orde
 import { getRecentProducts as fetchRecentProducts } from "../../features/products/productSlice";
 import { getRecentCustomers as fetchRecentCustomers } from "../../features/customers/customerSlice";
 import { connectSSE, disconnectSSE } from "../../services/realtime";
-// 👇 New import (if you don't have it yet, add the thunk to productSlice as described earlier)
 import { getLowStock as fetchLowStock } from "../../features/products/productSlice";
 import { useDispatch } from "react-redux";
+
+import {
+  getTotalWarehouses as fetchTotalWarehouses,
+  getRecentWarehouses as fetchRecentWarehouses,
+} from "../../features/warehouses/warehouseSlice";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -24,8 +28,9 @@ const Dashboard = () => {
   const [recentOrders, setRecentOrders] = useState([]);
   const [recentCustomers, setRecentCustomers] = useState([]);
   const [recentProducts, setRecentProducts] = useState([]);
-  const [lowStock, setLowStock] = useState([]); // 👈 NEW
+  const [lowStock, setLowStock] = useState([]); 
   const LOW_STOCK_THRESHOLD = 5; // 👈 configurable threshold
+  const [recentWarehouses, setRecentWarehouses] = useState([]);
 
   // Initial stats are set to null to avoid showing any dummy/fake data
   const [stats, setStats] = useState({
@@ -33,12 +38,14 @@ const Dashboard = () => {
     orders: null, // number from orders slice
     products: null, // expected to be an object from products slice (e.g., { totalProducts })
     revenue: null, // number from orders slice
+    warehouses: null, // { totalWarehouses }
   });
 
   // Navigate helpers
   const handleAddCustomer = () => navigate("/customers/new");
   const handleAddOrder = () => navigate("/orders/new");
   const handleAddProduct = () => navigate("/products/new");
+  const handleAddWarehouse = () => navigate("/warehouses/new");
 
   // Thunk wrappers
   const getTotalRevenue = async () => {
@@ -76,7 +83,6 @@ const Dashboard = () => {
     return data;
   };
 
-  // 👇 Optional: low stock fetch wrapper (returns array or null on failure)
   const getLowStock = async (threshold = LOW_STOCK_THRESHOLD) => {
     try {
       const data = await dispatch(fetchLowStock(threshold)).unwrap(); // array
@@ -110,12 +116,13 @@ const Dashboard = () => {
           dispatch(fetchLowStock(LOW_STOCK_THRESHOLD)).unwrap().catch(() => null),
         ]);
   
-        setStats({
+        setStats((prev) => ({
+          ...prev,
           customers: totalCustomers,
           orders: Number(totalOrders ?? 0),
           products: totalProducts,
           revenue: Number(totalRevenue ?? 0),
-        });
+        }));
   
         const recentOrdersSafe = Array.isArray(recentOrdersRes) ? recentOrdersRes : [];
         const recentCustomersSafe = Array.isArray(recentCustomersRes) ? recentCustomersRes : [];
@@ -131,6 +138,18 @@ const Dashboard = () => {
             (p) => Number.isFinite(p?.stock) && p.stock <= LOW_STOCK_THRESHOLD
           ) || [];
         setLowStock(Array.isArray(lowStockRes) ? lowStockRes : fallbackLowStock);
+
+        try {
+          const [totalWh, recentWh] = await Promise.all([
+            dispatch(fetchTotalWarehouses()).unwrap(),   // -> { totalWarehouses }
+            dispatch(fetchRecentWarehouses()).unwrap(),  // -> array
+          ]);
+          setStats((prev) => ({ ...prev, warehouses: totalWh }));
+          setRecentWarehouses(Array.isArray(recentWh) ? recentWh : []);
+        } catch (e) {
+          // non-fatal for dashboard
+          console.warn("Warehouses section failed to load", e);
+        }
       } catch (err) {
         console.error("Failed to fetch dashboard stats", err);
       }
@@ -224,6 +243,11 @@ const Dashboard = () => {
             }
             icon="💰"
           />
+          <StatCard
+            title="Total Warehouses"
+            value={stats.warehouses?.totalWarehouses}
+            icon="🏭"
+          />
         </div>
 
         {/* Quick Actions */}
@@ -256,6 +280,9 @@ const Dashboard = () => {
               <Button color="primary" onClick={handleAddProduct}>
                 Add Product
               </Button>
+              <Button color="primary" onClick={handleAddWarehouse}>
+                Add Warehouse
+              </Button>
             </div>
             <div
               style={{
@@ -284,6 +311,12 @@ const Dashboard = () => {
                 style={{ color: "#3f51b5", textDecoration: "none" }}
               >
                 View All Products
+              </Link>
+              <Link
+                to="/warehouses"
+                style={{ color: "#3f51b5", textDecoration: "none" }}
+              >
+                View All Warehouses
               </Link>
             </div>
           </CardContent>
@@ -393,7 +426,30 @@ const Dashboard = () => {
             )}
           />
 
-          {/* 👇 NEW: Low Stock alert card */}
+          <RecentCard
+            title="Recent Warehouses"
+            items={Array.isArray(recentWarehouses) ? recentWarehouses : []}
+            emptyMessage="No recent warehouses"
+            renderItem={(w) => (
+              <div
+                key={w.id}
+                style={{
+                  padding: 12,
+                  border: "1px solid rgba(0, 0, 0, 0.12)",
+                  borderRadius: 4,
+                  backgroundColor: "#fafafa",
+                }}
+              >
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>{w.name}</div>
+                <div
+                  style={{ fontSize: "0.875rem", color: "rgba(0, 0, 0, 0.54)" }}
+                >
+                  Capacity: {w.capacity} • Products: {w.productsCount}
+                </div>
+              </div>
+            )}
+          />
+
           <RecentCard
             title={`Low Stock (≤ ${LOW_STOCK_THRESHOLD})`}
             items={Array.isArray(lowStock) ? lowStock : []}

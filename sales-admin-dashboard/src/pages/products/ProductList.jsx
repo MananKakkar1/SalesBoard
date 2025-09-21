@@ -1,5 +1,3 @@
-// This is the ProductList page, which can only be accessed through the dashboard and sidebar. 
-// This page displays a table of products in the database and allows CRUD operations to be performed on each product.
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Card, { CardHeader, CardContent } from "../../components/common/Card";
@@ -10,6 +8,7 @@ import {
   fetchProducts,
   deleteProduct,
   searchProducts,
+  fetchProductById as fetchProductByIdThunk,
 } from "../../features/products/productSlice";
 
 const ProductList = () => {
@@ -21,19 +20,12 @@ const ProductList = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
+  const [stockById, setStockById] = useState({}); // id -> stock
   const productsArray = Array.isArray(products) ? products : [];
 
-  // Navigate to ProductForm page to create a new product
-  const handleNewProduct = () => {
-    navigate("/products/new");
-  };
+  const handleNewProduct = () => navigate("/products/new");
+  const handleEditProduct = (id) => navigate(`/products/${id}`);
 
-  // Navigate to ProductForm page to edit a product with productId
-  const handleEditProduct = (id) => {
-    navigate(`/products/${id}`);
-  };
-
-  // handleDeleteProduct deletes a product based on its productId in the database and loads all products to show the change
   const handleDeleteProduct = async (id) => {
     setLoading(true);
     try {
@@ -45,7 +37,6 @@ const ProductList = () => {
     setLoading(false);
   };
 
-  // handleSearchChange either searches for products based on "value" entered by a user or fetches all products if "value" does not exist and there is no query
   const handleSearchChange = async (e) => {
     const value = e.target.value;
     setSearch(value);
@@ -65,20 +56,17 @@ const ProductList = () => {
     setLoading(false);
   };
 
-  // handlePageChange changes the page and reloads products based on which page is now selected (Pagination)
   const handlePageChange = (newPage) => {
     setPage(newPage);
     loadProducts(newPage);
   };
 
-  // handlePageSizeChange changes the size of the page based on user input and reloads products based on the size of the page from the database (Pagination)
   const handlePageSizeChange = (newPageSize) => {
     setPageSize(newPageSize);
     setPage(1);
     loadProducts(1, newPageSize);
   };
 
-  // loadProducts loads products onto the page either by searching for specific products in the database based on a query or fetches all products if there is no query
   const loadProducts = async (
     currentPage = page,
     currentPageSize = pageSize
@@ -107,8 +95,32 @@ const ProductList = () => {
     setLoading(false);
   };
 
+  // After list loads/changes, fetch stock per product (once) and cache it.
+  useEffect(() => {
+    const fillStocks = async () => {
+      const missingIds = productsArray
+        .map((p) => p.id)
+        .filter((id) => stockById[id] === undefined);
+      if (missingIds.length === 0) return;
+
+      for (const id of missingIds) {
+        try {
+          const p = await dispatch(fetchProductByIdThunk(id)).unwrap();
+          if (p && typeof p.stock !== "undefined") {
+            setStockById((m) => ({ ...m, [id]: Number(p.stock || 0) }));
+          }
+        } catch {
+          // ignore failures for individual rows
+        }
+      }
+    };
+    fillStocks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productsArray]);
+
   useEffect(() => {
     loadProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]);
 
   return (
@@ -142,42 +154,50 @@ const ProductList = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: "center", padding: 8 }}>
+                <td colSpan={5} style={{ textAlign: "center", padding: 8 }}>
                   Loading...
                 </td>
               </tr>
             ) : !productsArray || productsArray.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: "center", padding: 8 }}>
+                <td colSpan={5} style={{ textAlign: "center", padding: 8 }}>
                   No products found.
                 </td>
               </tr>
             ) : (
-              productsArray.map((product) => (
-                <tr key={product.id}>
-                  <td style={{ padding: "8px" }}>{product.id}</td>
-                  <td style={{ padding: "8px" }}>{product.name}</td>
-                  <td style={{ padding: "8px" }}>${product.price}</td>
-                  <td style={{ padding: "8px" }}>{product.stock}</td>
-                  <td style={{ padding: "8px" }}>
-                    <Button
-                      color="primary"
-                      size="small"
-                      onClick={() => handleEditProduct(product.id)}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      color="secondary"
-                      size="small"
-                      style={{ marginLeft: 8 }}
-                      onClick={() => handleDeleteProduct(product.id)}
-                    >
-                      Delete
-                    </Button>
-                  </td>
-                </tr>
-              ))
+              productsArray.map((product) => {
+                const priceNum = Number(product?.price ?? 0);
+                const stockNum =
+                  typeof product.stock !== "undefined"
+                    ? Number(product.stock)
+                    : Number(stockById[product.id] ?? 0);
+
+                return (
+                  <tr key={product.id}>
+                    <td style={{ padding: "8px" }}>{product.id}</td>
+                    <td style={{ padding: "8px" }}>{product.name}</td>
+                    <td style={{ padding: "8px" }}>${priceNum.toFixed(2)}</td>
+                    <td style={{ padding: "8px" }}>{stockNum}</td>
+                    <td style={{ padding: "8px" }}>
+                      <Button
+                        color="primary"
+                        size="small"
+                        onClick={() => handleEditProduct(product.id)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        color="secondary"
+                        size="small"
+                        style={{ marginLeft: 8 }}
+                        onClick={() => handleDeleteProduct(product.id)}
+                      >
+                        Delete
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

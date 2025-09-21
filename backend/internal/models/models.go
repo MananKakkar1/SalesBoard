@@ -39,3 +39,18 @@ type User struct {
     AccessKey  string `json:"accessKey"`
     UserActive int    `json:"userActive"`
 }
+
+type Warehouse struct {
+    ID       int    `json:"id"`
+    Name     string `json:"name"`
+    Latitude  string `json:"latitude"`
+    Longitude string `json:"longitude"`
+    ProductsCount int    `json:"productsCount"`
+    Capacity int    `json:"capacity"`
+}
+
+type WarehouseInventoryItem struct {
+	ProductID int    `json:"product_id"`
+	Name      string `json:"name"`
+	Qty       int    `json:"qty"`
+}
