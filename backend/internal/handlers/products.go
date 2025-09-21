@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/MananKakkar1/SalesBoard/backend/internal/models"
 	"github.com/MananKakkar1/SalesBoard/backend/internal/tools"
@@ -158,6 +159,16 @@ func updateProductHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		tools.HandleInternalServerError(w, err)
 		return
+	}
+	if p.Stock <= 5 { // choose your threshold
+		tools.SSE.Broadcast(tools.Event{
+			Type: "product.low_stock",
+			Data: map[string]interface{}{
+				"id":    id,          // product ID (string from URL)
+				"stock": p.Stock,     // or s.Stock
+			},
+			Time: time.Now(),
+		})
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

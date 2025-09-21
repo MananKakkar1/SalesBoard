@@ -2,6 +2,7 @@
 package handlers
 
 import (
+	"github.com/MananKakkar1/SalesBoard/backend/internal/tools"
 	"github.com/go-chi/chi"
 	chimiddle "github.com/go-chi/chi/middleware"
 	"github.com/go-chi/cors"
@@ -23,6 +24,7 @@ func Handler(r *chi.Mux) {
 	r.Post("/api/create-product", createProductHandler)
 	r.Post("/api/create-customer", createCustomerHandler)
 	r.Post("/api/create-order", createOrderHandler)
+	r.Get("/api/events", tools.SSEHandler)
 
 	// Customer routes 
 	r.Get("/api/customers/total-customers", getTotalCustomersHandler)

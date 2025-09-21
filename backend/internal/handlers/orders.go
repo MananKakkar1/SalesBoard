@@ -11,6 +11,7 @@ import (
 	"github.com/MananKakkar1/SalesBoard/backend/internal/models"
 	"github.com/MananKakkar1/SalesBoard/backend/internal/tools"
 	"github.com/go-chi/chi"
+	"time"
 )
 
 // createOrderHandler creates a new order with multiple products in the database
@@ -57,6 +58,18 @@ func createOrderHandler(w http.ResponseWriter, r *http.Request) {
 		tools.HandleInternalServerError(w, err)
 		return
 	}
+
+	tools.SSE.Broadcast(tools.Event{
+		Type: "order.created",
+		Data: map[string]interface{}{
+			"orderId":     order.OrderID,
+			"customerId":  order.CustomerID,
+			"userId":      order.UserID,
+			"totalPrice":  order.TotalPrice,
+			"createdAt":   order.CreatedAt,
+		},
+		Time: time.Now(),
+	})
 
 	w.WriteHeader(http.StatusCreated)
 }

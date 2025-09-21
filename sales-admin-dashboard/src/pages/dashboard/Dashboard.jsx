@@ -13,6 +13,7 @@ import { getTotalProducts as fetchTotalProducts } from "../../features/products/
 import { getRecentOrders as fetchRecentOrders } from "../../features/orders/orderSlice";
 import { getRecentProducts as fetchRecentProducts } from "../../features/products/productSlice";
 import { getRecentCustomers as fetchRecentCustomers } from "../../features/customers/customerSlice";
+import { connectSSE, disconnectSSE } from "../../services/realtime";
 // 👇 New import (if you don't have it yet, add the thunk to productSlice as described earlier)
 import { getLowStock as fetchLowStock } from "../../features/products/productSlice";
 import { useDispatch } from "react-redux";
@@ -29,9 +30,9 @@ const Dashboard = () => {
   // Initial stats are set to null to avoid showing any dummy/fake data
   const [stats, setStats] = useState({
     customers: null, // expected to be an object from customers slice (e.g., { totalCustomers })
-    orders: null,    // number from orders slice
-    products: null,  // expected to be an object from products slice (e.g., { totalProducts })
-    revenue: null,   // number from orders slice
+    orders: null, // number from orders slice
+    products: null, // expected to be an object from products slice (e.g., { totalProducts })
+    revenue: null, // number from orders slice
   });
 
   // Navigate helpers
@@ -86,6 +87,7 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
+    // 1. Initial load of dashboard data
     const loadDashboardData = async () => {
       try {
         const [
@@ -96,47 +98,85 @@ const Dashboard = () => {
           recentOrdersRes,
           recentCustomersRes,
           recentProductsRes,
-          lowStockRes, // 👈 try server-provided low-stock list
+          lowStockRes,
         ] = await Promise.all([
-          getTotalCustomers(),
-          getTotalOrders(),
-          getTotalProducts(),
-          getTotalRevenue(),
-          getThreeRecentOrders(),
-          getThreeRecentCustomers(),
-          getThreeRecentProducts(),
-          getLowStock(LOW_STOCK_THRESHOLD), // may be null if thunk isn't implemented yet
+          dispatch(fetchTotalCustomers()).unwrap(),
+          dispatch(fetchTotalOrders()).unwrap(),
+          dispatch(fetchTotalProducts()).unwrap(),
+          dispatch(fetchTotalRevenue()).unwrap(),
+          dispatch(fetchRecentOrders()).unwrap(),
+          dispatch(fetchRecentCustomers()).unwrap(),
+          dispatch(fetchRecentProducts()).unwrap(),
+          dispatch(fetchLowStock(LOW_STOCK_THRESHOLD)).unwrap().catch(() => null),
         ]);
-
+  
         setStats({
           customers: totalCustomers,
           orders: Number(totalOrders ?? 0),
           products: totalProducts,
           revenue: Number(totalRevenue ?? 0),
         });
-
+  
         const recentOrdersSafe = Array.isArray(recentOrdersRes) ? recentOrdersRes : [];
         const recentCustomersSafe = Array.isArray(recentCustomersRes) ? recentCustomersRes : [];
         const recentProductsSafe = Array.isArray(recentProductsRes) ? recentProductsRes : [];
-
+  
         setRecentOrders(recentOrdersSafe);
         setRecentCustomers(recentCustomersSafe);
         setRecentProducts(recentProductsSafe);
-
-        // 👇 Low-stock: prefer API result; otherwise, fall back to filtering recent products
+  
+        // Low-stock: prefer API result; otherwise fallback
         const fallbackLowStock =
           recentProductsSafe.filter(
             (p) => Number.isFinite(p?.stock) && p.stock <= LOW_STOCK_THRESHOLD
           ) || [];
-
         setLowStock(Array.isArray(lowStockRes) ? lowStockRes : fallbackLowStock);
-      } catch (error) {
-        console.error("Failed to fetch dashboard stats", error);
+      } catch (err) {
+        console.error("Failed to fetch dashboard stats", err);
       }
     };
-
+  
     loadDashboardData();
+  
+    // 2. Connect to SSE for live updates
+    const es = connectSSE({
+      onEvent: (ev) => {
+        switch (ev.type) {
+          case "order.created": {
+            const order = ev.data || {};
+            setRecentOrders((prev) => [order, ...prev].slice(0, 3));
+            setStats((s) => ({
+              ...s,
+              orders: Number(s.orders ?? 0) + 1,
+              revenue: Number(s.revenue ?? 0) + Number(order.totalPrice ?? 0),
+            }));
+            // refresh truth from server
+            dispatch(fetchTotalOrders());
+            dispatch(fetchTotalRevenue());
+            dispatch(fetchRecentOrders());
+            break;
+          }
+          case "product.low_stock": {
+            dispatch(fetchLowStock(LOW_STOCK_THRESHOLD))
+              .unwrap()
+              .then((list) => {
+                if (Array.isArray(list)) setLowStock(list);
+              })
+              .catch(() => {});
+            break;
+          }
+          default:
+            break;
+        }
+      },
+    });
+  
+    // Cleanup
+    return () => {
+      disconnectSSE();
+    };
   }, [dispatch]);
+  
 
   return (
     <div
@@ -368,7 +408,9 @@ const Dashboard = () => {
                   backgroundColor: "#fff8e1",
                 }}
               >
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <div
+                  style={{ display: "flex", justifyContent: "space-between" }}
+                >
                   <strong>{p.name}</strong>
                   <span style={{ fontWeight: 700 }}>
                     Stock: {Number.isFinite(p?.stock) ? p.stock : 0}
