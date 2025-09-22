@@ -4,27 +4,84 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/MananKakkar1/SalesBoard/backend/internal/models"
 	"github.com/MananKakkar1/SalesBoard/backend/internal/tools"
 	"github.com/go-chi/chi"
-	"time"
 )
 
-// createOrderHandler creates a new order with multiple products in the database
+// ---------- small runtime migration helpers ----------
+
+func ensureOrderItemsHasWarehouseColumn(db *sql.DB) error {
+	// check if column exists
+	var count int
+	err := db.QueryRow(`
+		SELECT COUNT(*)
+		  FROM pragma_table_info('order_items')
+		 WHERE name = 'warehouse_id';
+	`).Scan(&count)
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		// add column (SQLite: ALTER TABLE ADD COLUMN is idempotent enough if not present)
+		if _, err := db.Exec(`ALTER TABLE order_items ADD COLUMN warehouse_id INTEGER`); err != nil {
+			// If another process added it between the check and now, ignore "duplicate column" style errors.
+			// SQLite returns "duplicate column name: warehouse_id" — just proceed.
+		}
+	}
+	return nil
+}
+
+// ---------- Input DTOs ----------
+type orderItemIn struct {
+	ProductID   int     `json:"productId"`
+	Quantity    int     `json:"quantity"`
+	SalePrice   float64 `json:"salePrice"`
+	WarehouseID int     `json:"warehouseId"` // required: which warehouse fulfills this line
+}
+
+type createOrderIn struct {
+	OrderID      int           `json:"orderId"`
+	CustomerID   int           `json:"customerId"`
+	UserID       int           `json:"userId"`
+	TotalPrice   float64       `json:"totalPrice"` // accepted but recomputed server-side
+	CreatedAt    string        `json:"createdAt"`  // optional; fallback to now
+	ProductItems []orderItemIn `json:"productItems"`
+}
+
+// ---------- Create (POST /api/orders) ----------
 func createOrderHandler(w http.ResponseWriter, r *http.Request) {
-	var order models.Order
-	if err := json.NewDecoder(r.Body).Decode(&order); err != nil {
-		tools.HandleBadRequest(w, errors.New("invalid request"))
+	// make sure column exists before we try to INSERT into it
+	if err := ensureOrderItemsHasWarehouseColumn(tools.DB); err != nil {
+		tools.HandleInternalServerError(w, err)
 		return
 	}
 
-	if order.CustomerID == 0 || len(order.ProductItems) == 0 || order.TotalPrice <= 0 || order.OrderID == 0 {
-		tools.HandleBadRequest(w, errors.New("customerId, productItems, totalPrice, orderId are required"))
+	var in createOrderIn
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		tools.HandleBadRequest(w, errors.New("invalid request"))
 		return
+	}
+	if in.OrderID == 0 || in.CustomerID == 0 || in.UserID == 0 || len(in.ProductItems) == 0 {
+		tools.HandleBadRequest(w, errors.New("orderId, customerId, userId, productItems are required"))
+		return
+	}
+	for _, it := range in.ProductItems {
+		if it.ProductID <= 0 || it.Quantity <= 0 || it.WarehouseID <= 0 {
+			tools.HandleBadRequest(w, errors.New("each item requires productId > 0, quantity > 0, warehouseId > 0"))
+			return
+		}
+	}
+
+	createdAt := strings.TrimSpace(in.CreatedAt)
+	if createdAt == "" {
+		createdAt = time.Now().UTC().Format(time.RFC3339)
 	}
 
 	tx, err := tools.DB.Begin()
@@ -34,24 +91,69 @@ func createOrderHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 
-	_, err = tx.Exec(
-		"INSERT INTO orders (orderId, customerId, userId, totalPrice, createdAt) VALUES (?, ?, ?, ?, ?)",
-		order.OrderID, order.CustomerID, order.UserID, order.TotalPrice, order.CreatedAt,
-	)
-	if err != nil {
+	// Insert order shell
+	if _, err := tx.Exec(
+		`INSERT INTO orders (orderId, customerId, userId, totalPrice, createdAt)
+		 VALUES (?, ?, ?, ?, ?)`,
+		in.OrderID, in.CustomerID, in.UserID, 0, createdAt,
+	); err != nil {
 		tools.HandleInternalServerError(w, err)
 		return
 	}
 
-	for _, item := range order.ProductItems {
-		_, err := tx.Exec(
-			"INSERT INTO order_items (orderId, productId, quantity, salePrice) VALUES (?, ?, ?, ?)",
-			order.OrderID, item.ProductID, item.Quantity, item.SalePrice,
-		)
+	var computedTotal float64
+
+	for _, it := range in.ProductItems {
+		// Check availability in selected warehouse
+		var avail int
+		err := tx.QueryRow(
+			`SELECT qty FROM warehouse_inventory WHERE warehouse_id = ? AND product_id = ?`,
+			it.WarehouseID, it.ProductID,
+		).Scan(&avail)
+		if err == sql.ErrNoRows {
+			tools.HandleBadRequest(w, fmt.Errorf("no inventory for product %d in warehouse %d", it.ProductID, it.WarehouseID))
+			return
+		}
 		if err != nil {
 			tools.HandleInternalServerError(w, err)
 			return
 		}
+		if avail < it.Quantity {
+			tools.HandleBadRequest(w, fmt.Errorf("insufficient stock for product %d in warehouse %d", it.ProductID, it.WarehouseID))
+			return
+		}
+
+		// Deduct stock
+		if _, err := tx.Exec(
+			`UPDATE warehouse_inventory
+			    SET qty = qty - ?
+			  WHERE warehouse_id = ? AND product_id = ?`,
+			it.Quantity, it.WarehouseID, it.ProductID,
+		); err != nil {
+			tools.HandleInternalServerError(w, err)
+			return
+		}
+
+		// Insert order item with warehouse_id
+		if _, err := tx.Exec(
+			`INSERT INTO order_items (orderId, productId, quantity, salePrice, warehouse_id)
+			 VALUES (?, ?, ?, ?, ?)`,
+			in.OrderID, it.ProductID, it.Quantity, it.SalePrice, it.WarehouseID,
+		); err != nil {
+			tools.HandleInternalServerError(w, err)
+			return
+		}
+
+		computedTotal += float64(it.Quantity) * it.SalePrice
+	}
+
+	// Update total
+	if _, err := tx.Exec(
+		`UPDATE orders SET totalPrice = ? WHERE orderId = ?`,
+		computedTotal, in.OrderID,
+	); err != nil {
+		tools.HandleInternalServerError(w, err)
+		return
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -59,26 +161,32 @@ func createOrderHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// SSE notify
 	tools.SSE.Broadcast(tools.Event{
 		Type: "order.created",
-		Data: map[string]interface{}{
-			"orderId":     order.OrderID,
-			"customerId":  order.CustomerID,
-			"userId":      order.UserID,
-			"totalPrice":  order.TotalPrice,
-			"createdAt":   order.CreatedAt,
+		Data: map[string]any{
+			"orderId":    in.OrderID,
+			"customerId": in.CustomerID,
+			"userId":     in.UserID,
+			"totalPrice": computedTotal,
+			"createdAt":  createdAt,
 		},
 		Time: time.Now(),
 	})
 
-	w.WriteHeader(http.StatusCreated)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"orderId":    in.OrderID,
+		"totalPrice": computedTotal,
+	})
 }
 
-// getOrdersHandler gets a list of orders with search and pagination
+// ---------- List (GET /api/orders?search=&page=&pageSize=) ----------
 func getOrdersHandler(w http.ResponseWriter, r *http.Request) {
 	search := strings.TrimSpace(r.URL.Query().Get("search"))
 	pageStr := r.URL.Query().Get("page")
 	pageSizeStr := r.URL.Query().Get("pageSize")
+
 	page := 1
 	pageSize := 20
 	if pageStr != "" {
@@ -94,21 +202,24 @@ func getOrdersHandler(w http.ResponseWriter, r *http.Request) {
 	offset := (page - 1) * pageSize
 
 	var totalCount int
-	var countQuery string
-	var countArgs []interface{}
 	if search != "" {
-		likeQuery := "%" + strings.ToLower(search) + "%"
-		countQuery = `SELECT COUNT(DISTINCT o.orderId) FROM orders o JOIN customers c ON o.customerId = c.id WHERE CAST(o.orderId AS TEXT) LIKE ? OR LOWER(o.createdAt) LIKE ? OR LOWER(c.name) LIKE ? OR LOWER(c.email) LIKE ?`
-		countArgs = []interface{}{likeQuery, likeQuery, likeQuery, likeQuery}
+		like := "%" + strings.ToLower(search) + "%"
+		if err := tools.DB.QueryRow(
+			`SELECT COUNT(DISTINCT o.orderId)
+			   FROM orders o
+			   JOIN customers c ON o.customerId = c.id
+			  WHERE CAST(o.orderId AS TEXT) LIKE ?
+			     OR LOWER(o.createdAt) LIKE ?
+			     OR LOWER(c.name) LIKE ?
+			     OR LOWER(c.email) LIKE ?`,
+			like, like, like, like,
+		).Scan(&totalCount); err != nil {
+			tools.HandleInternalServerError(w, err); return
+		}
 	} else {
-		countQuery = `SELECT COUNT(*) FROM orders`
-		countArgs = []interface{}{}
-	}
-
-	err := tools.DB.QueryRow(countQuery, countArgs...).Scan(&totalCount)
-	if err != nil {
-		tools.HandleInternalServerError(w, err)
-		return
+		if err := tools.DB.QueryRow(`SELECT COUNT(*) FROM orders`).Scan(&totalCount); err != nil {
+			tools.HandleInternalServerError(w, err); return
+		}
 	}
 
 	totalPages := (totalCount + pageSize - 1) / pageSize
@@ -116,35 +227,47 @@ func getOrdersHandler(w http.ResponseWriter, r *http.Request) {
 	hasPrev := page > 1
 
 	var rows *sql.Rows
-	var dataQuery string
-	var args []interface{}
+	var err error
 	if search != "" {
-		likeQuery := "%" + strings.ToLower(search) + "%"
-		dataQuery = `SELECT o.orderId, o.customerId, o.userId, o.totalPrice, o.createdAt FROM orders o JOIN customers c ON o.customerId = c.id WHERE CAST(o.orderId AS TEXT) LIKE ? OR LOWER(o.createdAt) LIKE ? OR LOWER(c.name) LIKE ? OR LOWER(c.email) LIKE ? GROUP BY o.orderId, o.customerId, o.userId, o.totalPrice, o.createdAt ORDER BY o.orderId ASC LIMIT ? OFFSET ?`
-		args = []interface{}{likeQuery, likeQuery, likeQuery, likeQuery, pageSize, offset}
+		like := "%" + strings.ToLower(search) + "%"
+		rows, err = tools.DB.Query(
+			`SELECT o.orderId, o.customerId, o.userId, o.totalPrice, o.createdAt
+			   FROM orders o
+			   JOIN customers c ON o.customerId = c.id
+			  WHERE CAST(o.orderId AS TEXT) LIKE ?
+			     OR LOWER(o.createdAt) LIKE ?
+			     OR LOWER(c.name) LIKE ?
+			     OR LOWER(c.email) LIKE ?
+		   GROUP BY o.orderId, o.customerId, o.userId, o.totalPrice, o.createdAt
+		   ORDER BY o.orderId ASC
+			  LIMIT ? OFFSET ?`,
+			like, like, like, like, pageSize, offset,
+		)
 	} else {
-		dataQuery = `SELECT orderId, customerId, userId, totalPrice, createdAt FROM orders ORDER BY orderId ASC LIMIT ? OFFSET ?`
-		args = []interface{}{pageSize, offset}
+		rows, err = tools.DB.Query(
+			`SELECT orderId, customerId, userId, totalPrice, createdAt
+			   FROM orders
+		   ORDER BY orderId ASC
+			  LIMIT ? OFFSET ?`,
+			pageSize, offset,
+		)
 	}
-	rows, err = tools.DB.Query(dataQuery, args...)
-	if err != nil {
-		tools.HandleInternalServerError(w, err)
-		return
-	}
+	if err != nil { tools.HandleInternalServerError(w, err); return }
 	defer rows.Close()
+
 	var orders []models.Order
 	for rows.Next() {
-		var order models.Order
-		if err := rows.Scan(&order.OrderID, &order.CustomerID, &order.UserID, &order.TotalPrice, &order.CreatedAt); err != nil {
-			tools.HandleInternalServerError(w, err)
-			return
+		var o models.Order
+		if err := rows.Scan(&o.OrderID, &o.CustomerID, &o.UserID, &o.TotalPrice, &o.CreatedAt); err != nil {
+			tools.HandleInternalServerError(w, err); return
 		}
-		orders = append(orders, order)
+		orders = append(orders, o)
 	}
 
-	response := map[string]interface{}{
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
 		"data": orders,
-		"pagination": map[string]interface{}{
+		"pagination": map[string]any{
 			"page":       page,
 			"pageSize":   pageSize,
 			"totalCount": totalCount,
@@ -152,54 +275,105 @@ func getOrdersHandler(w http.ResponseWriter, r *http.Request) {
 			"hasNext":    hasNext,
 			"hasPrev":    hasPrev,
 		},
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	})
 }
 
-// getOrderByIDHandler gets a single order with all its product items by order ID
+// ---------- Read one (GET /api/orders/{id}) ----------
 func getOrderByIDHandler(w http.ResponseWriter, r *http.Request) {
 	orderID := chi.URLParam(r, "id")
 
-	var order models.Order
-	err := tools.DB.QueryRow(
-		`SELECT orderId, customerId, userId, totalPrice, createdAt FROM orders WHERE orderId = ?`,
-		orderID,
-	).Scan(&order.OrderID, &order.CustomerID, &order.UserID, &order.TotalPrice, &order.CreatedAt)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			http.Error(w, "Order not found", http.StatusNotFound)
-			return
-		}
-		tools.HandleInternalServerError(w, err)
-		return
-	}
-	rows, err := tools.DB.Query(
-		`SELECT productId, quantity, salePrice FROM order_items WHERE orderId = ?`,
-		orderID,
-	)
-	if err != nil {
-		tools.HandleInternalServerError(w, err)
-		return
-	}
-	defer rows.Close()
+	// Try to ensure column exists so our preferred query works.
+	_ = ensureOrderItemsHasWarehouseColumn(tools.DB)
 
-	var items []models.OrderItem
-	for rows.Next() {
-		var item models.OrderItem
-		if err := rows.Scan(&item.ProductID, &item.Quantity, &item.SalePrice); err != nil {
-			tools.HandleInternalServerError(w, err)
-			return
-		}
-		items = append(items, item)
+	var o struct {
+		OrderID    int     `json:"orderId"`
+		CustomerID int     `json:"customerId"`
+		UserID     int     `json:"userId"`
+		TotalPrice float64 `json:"totalPrice"`
+		CreatedAt  string  `json:"createdAt"`
 	}
-	order.ProductItems = items
+	if err := tools.DB.QueryRow(
+		`SELECT orderId, customerId, userId, totalPrice, createdAt
+		   FROM orders WHERE orderId = ?`,
+		orderID,
+	).Scan(&o.OrderID, &o.CustomerID, &o.UserID, &o.TotalPrice, &o.CreatedAt); err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Order not found", http.StatusNotFound); return
+		}
+		tools.HandleInternalServerError(w, err); return
+	}
+
+	type itemOut struct {
+		ProductID     int     `json:"productId"`
+		Quantity      int     `json:"quantity"`
+		SalePrice     float64 `json:"salePrice"`
+		WarehouseID   int     `json:"warehouseId"`
+		WarehouseName string  `json:"warehouseName"`
+	}
+
+	items := []itemOut{}
+
+	// Preferred query (uses warehouse_id). If it fails with "no such column", fall back without that column.
+	const withWarehouse = `
+		SELECT oi.productId,
+		       oi.quantity,
+		       oi.salePrice,
+		       COALESCE(oi.warehouse_id, 0) AS warehouse_id,
+		       COALESCE(w.name, '')          AS warehouse_name
+		  FROM order_items oi
+		  LEFT JOIN warehouses w ON w.id = oi.warehouse_id
+		 WHERE oi.orderId = ?
+	  ORDER BY oi.rowid ASC
+	`
+
+	rows, err := tools.DB.Query(withWarehouse, orderID)
+	if err != nil && strings.Contains(strings.ToLower(err.Error()), "no such column") {
+		// fallback: older schema without warehouse_id
+		rows, err = tools.DB.Query(
+			`SELECT oi.productId, oi.quantity, oi.salePrice
+			   FROM order_items oi
+			  WHERE oi.orderId = ?
+		   ORDER BY oi.rowid ASC`,
+			orderID,
+		)
+		if err != nil {
+			tools.HandleInternalServerError(w, err); return
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var it itemOut
+			if err := rows.Scan(&it.ProductID, &it.Quantity, &it.SalePrice); err != nil {
+				tools.HandleInternalServerError(w, err); return
+			}
+			// warehouse fields remain zero/empty on legacy rows
+			items = append(items, it)
+		}
+	} else if err != nil {
+		tools.HandleInternalServerError(w, err); return
+	} else {
+		defer rows.Close()
+		for rows.Next() {
+			var it itemOut
+			if err := rows.Scan(&it.ProductID, &it.Quantity, &it.SalePrice, &it.WarehouseID, &it.WarehouseName); err != nil {
+				tools.HandleInternalServerError(w, err); return
+			}
+			items = append(items, it)
+		}
+	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(order)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"orderId":      o.OrderID,
+		"customerId":   o.CustomerID,
+		"userId":       o.UserID,
+		"totalPrice":   o.TotalPrice,
+		"createdAt":    o.CreatedAt,
+		"productItems": items,
+	})
 }
 
-// deleteOrderHandler deletes an order and all its product items from the database
+// ---------- Delete (DELETE /api/orders/{id}) ----------
 func deleteOrderHandler(w http.ResponseWriter, r *http.Request) {
 	orderID := chi.URLParam(r, "id")
 	if orderID == "" {
@@ -208,55 +382,43 @@ func deleteOrderHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tx, err := tools.DB.Begin()
-	if err != nil {
-		tools.HandleInternalServerError(w, err)
-		return
-	}
+	if err != nil { tools.HandleInternalServerError(w, err); return }
 	defer tx.Rollback()
 
-	_, err = tx.Exec("DELETE FROM order_items WHERE orderId = ?", orderID)
-	if err != nil {
-		tools.HandleInternalServerError(w, err)
-		return
+	if _, err := tx.Exec(`DELETE FROM order_items WHERE orderId = ?`, orderID); err != nil {
+		tools.HandleInternalServerError(w, err); return
 	}
-
-	_, err = tx.Exec("DELETE FROM orders WHERE orderId = ?", orderID)
-	if err != nil {
-		tools.HandleInternalServerError(w, err)
-		return
+	if _, err := tx.Exec(`DELETE FROM orders WHERE orderId = ?`, orderID); err != nil {
+		tools.HandleInternalServerError(w, err); return
 	}
-
 	if err := tx.Commit(); err != nil {
-		tools.HandleInternalServerError(w, err)
-		return
+		tools.HandleInternalServerError(w, err); return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// searchOrdersHandler searches for orders with pagination
+// ---------- Search (GET /api/orders/search?q=&page=&pageSize=) ----------
 func searchOrdersHandler(w http.ResponseWriter, r *http.Request) {
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
 	pageStr := r.URL.Query().Get("page")
 	pageSizeStr := r.URL.Query().Get("pageSize")
+
 	page := 1
 	pageSize := 20
 	if pageStr != "" {
-		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
-			page = p
-		}
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 { page = p }
 	}
 	if pageSizeStr != "" {
-		if ps, err := strconv.Atoi(pageSizeStr); err == nil && ps > 0 && ps <= 100 {
-			pageSize = ps
-		}
+		if ps, err := strconv.Atoi(pageSizeStr); err == nil && ps > 0 && ps <= 100 { pageSize = ps }
 	}
 	offset := (page - 1) * pageSize
 
 	if query == "" {
-		response := map[string]interface{}{
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"data": []models.Order{},
-			"pagination": map[string]interface{}{
+			"pagination": map[string]any{
 				"page":       page,
 				"pageSize":   pageSize,
 				"totalCount": 0,
@@ -264,72 +426,82 @@ func searchOrdersHandler(w http.ResponseWriter, r *http.Request) {
 				"hasNext":    false,
 				"hasPrev":    false,
 			},
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		})
 		return
+	}
+
+	// numeric orderId?
+	isNumeric := true
+	for _, c := range query {
+		if c < '0' || c > '9' { isNumeric = false; break }
 	}
 
 	var totalCount int
-	var countQuery string
-	var countArgs []interface{}
-
-	isNumeric := true
-	for _, c := range query {
-		if c < '0' || c > '9' {
-			isNumeric = false
-			break
-		}
-	}
-
 	if isNumeric {
-		countQuery = `SELECT COUNT(*) FROM orders WHERE orderId = ?`
-		countArgs = []interface{}{query}
+		if err := tools.DB.QueryRow(`SELECT COUNT(*) FROM orders WHERE orderId = ?`, query).Scan(&totalCount); err != nil {
+			tools.HandleInternalServerError(w, err); return
+		}
 	} else {
-		likeQuery := "%" + strings.ToLower(query) + "%"
-		countQuery = `SELECT COUNT(DISTINCT o.orderId) FROM orders o JOIN customers c ON o.customerId = c.id WHERE LOWER(o.createdAt) LIKE ? OR LOWER(c.name) LIKE ? OR LOWER(c.email) LIKE ?`
-		countArgs = []interface{}{likeQuery, likeQuery, likeQuery}
-	}
-
-	err := tools.DB.QueryRow(countQuery, countArgs...).Scan(&totalCount)
-	if err != nil {
-		tools.HandleInternalServerError(w, err)
-		return
+		like := "%" + strings.ToLower(query) + "%"
+		if err := tools.DB.QueryRow(
+			`SELECT COUNT(DISTINCT o.orderId)
+			   FROM orders o
+			   JOIN customers c ON o.customerId = c.id
+			  WHERE LOWER(o.createdAt) LIKE ?
+			     OR LOWER(c.name) LIKE ?
+			     OR LOWER(c.email) LIKE ?`,
+			like, like, like,
+		).Scan(&totalCount); err != nil {
+			tools.HandleInternalServerError(w, err); return
+		}
 	}
 
 	totalPages := (totalCount + pageSize - 1) / pageSize
 	hasNext := page < totalPages
 	hasPrev := page > 1
 
-	var dataQuery string
-	var args []interface{}
+	var rows *sql.Rows
+	var err error
 	if isNumeric {
-		dataQuery = `SELECT orderId, customerId, userId, totalPrice, createdAt FROM orders WHERE orderId = ? ORDER BY orderId ASC LIMIT ? OFFSET ?`
-		args = []interface{}{query, pageSize, offset}
+		rows, err = tools.DB.Query(
+			`SELECT orderId, customerId, userId, totalPrice, createdAt
+			   FROM orders
+			  WHERE orderId = ?
+		   ORDER BY orderId ASC
+		      LIMIT ? OFFSET ?`,
+			query, pageSize, offset,
+		)
 	} else {
-		likeQuery := "%" + strings.ToLower(query) + "%"
-		dataQuery = `SELECT o.orderId, o.customerId, o.userId, o.totalPrice, o.createdAt FROM orders o JOIN customers c ON o.customerId = c.id WHERE LOWER(o.createdAt) LIKE ? OR LOWER(c.name) LIKE ? OR LOWER(c.email) LIKE ? GROUP BY o.orderId, o.customerId, o.userId, o.totalPrice, o.createdAt ORDER BY o.orderId ASC LIMIT ? OFFSET ?`
-		args = []interface{}{likeQuery, likeQuery, likeQuery, pageSize, offset}
+		like := "%" + strings.ToLower(query) + "%"
+		rows, err = tools.DB.Query(
+			`SELECT o.orderId, o.customerId, o.userId, o.totalPrice, o.createdAt
+			   FROM orders o
+			   JOIN customers c ON o.customerId = c.id
+			  WHERE LOWER(o.createdAt) LIKE ?
+			     OR LOWER(c.name) LIKE ?
+			     OR LOWER(c.email) LIKE ?
+		   GROUP BY o.orderId, o.customerId, o.userId, o.totalPrice, o.createdAt
+		   ORDER BY o.orderId ASC
+		      LIMIT ? OFFSET ?`,
+			like, like, like, pageSize, offset,
+		)
 	}
-	rows, err := tools.DB.Query(dataQuery, args...)
-	if err != nil {
-		tools.HandleInternalServerError(w, err)
-		return
-	}
+	if err != nil { tools.HandleInternalServerError(w, err); return }
 	defer rows.Close()
+
 	var orders []models.Order
 	for rows.Next() {
-		var order models.Order
-		if err := rows.Scan(&order.OrderID, &order.CustomerID, &order.UserID, &order.TotalPrice, &order.CreatedAt); err != nil {
-			tools.HandleInternalServerError(w, err)
-			return
+		var o models.Order
+		if err := rows.Scan(&o.OrderID, &o.CustomerID, &o.UserID, &o.TotalPrice, &o.CreatedAt); err != nil {
+			tools.HandleInternalServerError(w, err); return
 		}
-		orders = append(orders, order)
+		orders = append(orders, o)
 	}
 
-	response := map[string]interface{}{
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
 		"data": orders,
-		"pagination": map[string]interface{}{
+		"pagination": map[string]any{
 			"page":       page,
 			"pageSize":   pageSize,
 			"totalCount": totalCount,
@@ -337,66 +509,53 @@ func searchOrdersHandler(w http.ResponseWriter, r *http.Request) {
 			"hasNext":    hasNext,
 			"hasPrev":    hasPrev,
 		},
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	})
 }
 
-// getTotalRevenueHandler returns the total revenue from all orders
+// ---------- Stats ----------
+
+// GET /api/orders/total (total revenue)
 func getTotalRevenueHandler(w http.ResponseWriter, r *http.Request) {
 	var sum sql.NullFloat64
-	err := tools.DB.QueryRow(`SELECT SUM(totalPrice) FROM orders`).Scan(&sum)
-	if err != nil {
-		tools.HandleInternalServerError(w, err)
-		return
+	if err := tools.DB.QueryRow(`SELECT SUM(totalPrice) FROM orders`).Scan(&sum); err != nil {
+		tools.HandleInternalServerError(w, err); return
 	}
-
-	totalRevenue := 0.0
-	if sum.Valid {
-		totalRevenue = sum.Float64
-	}
-
+	total := 0.0
+	if sum.Valid { total = sum.Float64 }
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]float64{"totalRevenue": totalRevenue})
+	_ = json.NewEncoder(w).Encode(map[string]float64{"totalRevenue": total})
 }
 
-// getTotalOrdersHandler returns the total number of orders
+// GET /api/orders/total-orders (count)
 func getTotalOrdersHandler(w http.ResponseWriter, r *http.Request) {
-	var totalOrders int
-	err := tools.DB.QueryRow(
-		`SELECT COUNT(*) FROM orders`,
-	).Scan(&totalOrders)
-	if err != nil {
-		tools.HandleInternalServerError(w, err)
-		return
+	var n int
+	if err := tools.DB.QueryRow(`SELECT COUNT(*) FROM orders`).Scan(&n); err != nil {
+		tools.HandleInternalServerError(w, err); return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]int{"totalOrders": totalOrders})
+	_ = json.NewEncoder(w).Encode(map[string]int{"totalOrders": n})
 }
 
-// getRecentOrdersHandler returns the 3 most recently created orders
+// GET /api/orders/recent
 func getRecentOrdersHandler(w http.ResponseWriter, r *http.Request) {
 	rows, err := tools.DB.Query(
 		`SELECT orderId, customerId, userId, totalPrice, createdAt
-         FROM orders ORDER BY orderId DESC LIMIT 3`,
+		   FROM orders
+	   ORDER BY orderId DESC
+	      LIMIT 3`,
 	)
-	if err != nil {
-		tools.HandleInternalServerError(w, err)
-		return
-	}
+	if err != nil { tools.HandleInternalServerError(w, err); return }
 	defer rows.Close()
 
-	var orders []models.Order
+	var list []models.Order
 	for rows.Next() {
 		var o models.Order
 		if err := rows.Scan(&o.OrderID, &o.CustomerID, &o.UserID, &o.TotalPrice, &o.CreatedAt); err != nil {
-			tools.HandleInternalServerError(w, err)
-			return
+			tools.HandleInternalServerError(w, err); return
 		}
-		orders = append(orders, o)
+		list = append(list, o)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(orders)
+	_ = json.NewEncoder(w).Encode(list)
 }

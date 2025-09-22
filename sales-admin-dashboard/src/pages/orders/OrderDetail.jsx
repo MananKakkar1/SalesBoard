@@ -1,4 +1,5 @@
-//This is the OrderDetail page and can only be accessed by the OrderList page by pressing the view button next to a specific order. It shows all the order information that cannot be listed on the OrderList page.
+// This is the OrderDetail page, accessed from the OrderList "View" button.
+// Shows full order information including line-level warehouse that fulfilled each item.
 import React, { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useDispatch } from "react-redux";
@@ -12,7 +13,6 @@ const OrderDetail = () => {
 
   const orderId = location.pathname.split("/").pop();
 
-  //Fetching order information based on its orderId and update this information from the database on refresh/reload.
   useEffect(() => {
     const getOrder = async () => {
       if (!orderId) {
@@ -33,6 +33,8 @@ const OrderDetail = () => {
     return <div>Loading...</div>;
   }
 
+  const items = Array.isArray(order.productItems) ? order.productItems : [];
+
   return (
     <Card>
       <CardHeader>
@@ -46,16 +48,18 @@ const OrderDetail = () => {
           <strong>Date:</strong> {order.createdAt}
         </p>
         <p>
-          <strong>Total Price:</strong> ${order.totalPrice}
+          <strong>Total Price:</strong> ${Number(order.totalPrice || 0).toFixed(2)}
         </p>
         <hr />
         <h3>Items:</h3>
         <ul>
-          {order.productItems?.map((item, idx) => (
-            <li key={idx}>
+          {items.map((item, idx) => (
+            <li key={idx} style={{ marginBottom: 8 }}>
               <strong>Product ID: {item.productId}</strong>
               <br />
-              Quantity: {item.quantity} | Price: ${item.salePrice}
+              Quantity: {item.quantity} | Unit Price: ${Number(item.salePrice || 0).toFixed(2)}
+              <br />
+              Warehouse: {item.warehouseName || (item.warehouseId ? `#${item.warehouseId}` : "N/A")}
             </li>
           ))}
         </ul>

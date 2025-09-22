@@ -2,16 +2,70 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../../services/api";
 
+const normalizeCreatePayload = (raw) => {
+  const {
+    orderId,
+    customerId,
+    userId,
+    createdAt,
+    totalPrice, // optional; backend recomputes
+    productItems = [],
+  } = raw || {};
+
+  if (!customerId) throw new Error("Please select a customer.");
+  if (!Array.isArray(productItems) || productItems.length === 0) {
+    throw new Error("Add at least one product.");
+  }
+
+  const items = productItems.map((it, idx) => {
+    const pid = Number(it.productId ?? it.productID ?? it.id);
+    const qty = Number(it.quantity ?? it.qty);
+    const sale = Number(
+      it.salePrice ?? it.price ?? it.unitPrice ?? it.productPrice
+    );
+    const wh = Number(it.warehouseId ?? it.warehouseID ?? it.warehouse?.id);
+
+    if (!pid || qty <= 0 || !Number.isFinite(sale) || !wh) {
+      throw new Error(
+        `Line ${idx + 1}: productId, quantity (>0), salePrice, and warehouseId are required.`
+      );
+    }
+    return {
+      productId: pid,
+      quantity: qty,
+      salePrice: sale,
+      warehouseId: wh,
+    };
+  });
+
+  return {
+    orderId,
+    customerId,
+    userId,
+    createdAt,
+    totalPrice,
+    productItems: items,
+  };
+};
+
 export const createOrder = createAsyncThunk(
   "orders/createOrder",
   async (orderData, { rejectWithValue }) => {
     try {
-      const response = await api.post("/api/create-order", orderData);
-      return response.data;
+      const payload = normalizeCreatePayload(orderData);
+      const response = await api.post("/api/create-order", payload);
+      const data =
+        response.data && Object.keys(response.data).length > 0
+          ? response.data
+          : { orderId: payload.orderId };
+      return data;
     } catch (err) {
-      return rejectWithValue(
-        err.response?.data?.error || err.response?.data?.message || err.message || "Failed to create order"
-      );
+      const msg =
+        err?.message ||
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        "Failed to create order";
+      return rejectWithValue(msg);
     }
   }
 );
@@ -30,7 +84,10 @@ export const fetchOrders = createAsyncThunk(
       return response.data;
     } catch (err) {
       return rejectWithValue(
-        err.response?.data?.error || err.response?.data?.message || err.message || "Failed to fetch orders"
+        err?.response?.data?.error ||
+          err?.response?.data?.message ||
+          err?.message ||
+          "Failed to fetch orders"
       );
     }
   }
@@ -44,7 +101,10 @@ export const fetchOrderById = createAsyncThunk(
       return response.data;
     } catch (err) {
       return rejectWithValue(
-        err.response?.data?.error || err.response?.data?.message || err.message || "Failed to fetch order"
+        err?.response?.data?.error ||
+          err?.response?.data?.message ||
+          err?.message ||
+          "Failed to fetch order"
       );
     }
   }
@@ -58,7 +118,10 @@ export const deleteOrder = createAsyncThunk(
       return orderId;
     } catch (err) {
       return rejectWithValue(
-        err.response?.data?.error || err.response?.data?.message || err.message || "Failed to delete order"
+        err?.response?.data?.error ||
+          err?.response?.data?.message ||
+          err?.message ||
+          "Failed to delete order"
       );
     }
   }
@@ -72,7 +135,7 @@ export const searchOrders = createAsyncThunk(
         query = "",
         page = 1,
         pageSize = 20,
-      } = typeof params === "string" ? { query: params } : (params || {});
+      } = typeof params === "string" ? { query: params } : params || {};
       const queryParams = new URLSearchParams();
       queryParams.append("q", query);
       queryParams.append("page", page);
@@ -84,19 +147,21 @@ export const searchOrders = createAsyncThunk(
       return response.data;
     } catch (err) {
       return rejectWithValue(
-        err.response?.data?.error || err.response?.data?.message || err.message || "Failed to search orders"
+        err?.response?.data?.error ||
+          err?.response?.data?.message ||
+          err?.message ||
+          "Failed to search orders"
       );
     }
   }
 );
 
-// ---------- DASHBOARD STATS THUNKS (normalized returns) ----------
+// ---------- DASHBOARD STATS ----------
 export const getTotalRevenue = createAsyncThunk(
   "orders/getTotalRevenue",
   async (_, { rejectWithValue }) => {
     try {
       const res = await api.get("/api/orders/total");
-      // Accept { totalRevenue } or a raw number; normalize to number and default to 0
       const value =
         typeof res.data === "number"
           ? res.data
@@ -104,7 +169,10 @@ export const getTotalRevenue = createAsyncThunk(
       return value;
     } catch (err) {
       return rejectWithValue(
-        err.response?.data?.error || err.response?.data?.message || err.message || "Failed to fetch total revenue"
+        err?.response?.data?.error ||
+          err?.response?.data?.message ||
+          err?.message ||
+          "Failed to fetch total revenue"
       );
     }
   }
@@ -122,7 +190,10 @@ export const getTotalOrders = createAsyncThunk(
       return value;
     } catch (err) {
       return rejectWithValue(
-        err.response?.data?.error || err.response?.data?.message || err.message || "Failed to fetch total orders"
+        err?.response?.data?.error ||
+          err?.response?.data?.message ||
+          err?.message ||
+          "Failed to fetch total orders"
       );
     }
   }
@@ -133,11 +204,13 @@ export const getRecentOrders = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const res = await api.get("/api/orders/recent");
-      // Accept either raw array or { data: [...] }
-      return Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+      return Array.isArray(res.data) ? res.data : res.data?.data ?? [];
     } catch (err) {
       return rejectWithValue(
-        err.response?.data?.error || err.response?.data?.message || err.message || "Failed to fetch recent orders"
+        err?.response?.data?.error ||
+          err?.response?.data?.message ||
+          err?.message ||
+          "Failed to fetch recent orders"
       );
     }
   }
@@ -156,12 +229,11 @@ const orderSlice = createSlice({
       hasNext: false,
       hasPrev: false,
     },
-    // Dashboard stats live here
     stats: {
       totalRevenue: 0,
       totalOrders: 0,
       recentOrders: [],
-      status: "idle", // loading state for stats
+      status: "idle",
       error: null,
     },
     status: "idle",
@@ -170,7 +242,6 @@ const orderSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      // ---------- ORDERS LIST ----------
       .addCase(fetchOrders.fulfilled, (state, action) => {
         if (action.payload?.data && action.payload?.pagination) {
           state.list = action.payload.data;
@@ -197,8 +268,11 @@ const orderSlice = createSlice({
           };
         }
       })
-      .addCase(createOrder.fulfilled, (state, action) => {
-        state.list.push(action.payload);
+      .addCase(createOrder.fulfilled, (state) => {
+        // do not push partial order; let the page refetch after submit
+      })
+      .addCase(createOrder.rejected, (state, action) => {
+        state.error = action.payload || "Failed to create order";
       })
       .addCase(searchOrders.fulfilled, (state, action) => {
         if (action.payload?.data && action.payload?.pagination) {
@@ -227,7 +301,7 @@ const orderSlice = createSlice({
         }
       })
 
-      // ---------- DASHBOARD: TOTAL REVENUE ----------
+      // ---------- DASHBOARD ----------
       .addCase(getTotalRevenue.pending, (state) => {
         state.stats.status = "loading";
         state.stats.error = null;
@@ -239,10 +313,9 @@ const orderSlice = createSlice({
       .addCase(getTotalRevenue.rejected, (state, action) => {
         state.stats.status = "failed";
         state.stats.error = action.payload || "Failed to fetch total revenue";
-        state.stats.totalRevenue = 0; // safe fallback
+        state.stats.totalRevenue = 0;
       })
 
-      // ---------- DASHBOARD: TOTAL ORDERS ----------
       .addCase(getTotalOrders.pending, (state) => {
         state.stats.status = "loading";
         state.stats.error = null;
@@ -257,13 +330,14 @@ const orderSlice = createSlice({
         state.stats.totalOrders = 0;
       })
 
-      // ---------- DASHBOARD: RECENT ORDERS ----------
       .addCase(getRecentOrders.pending, (state) => {
         state.stats.status = "loading";
         state.stats.error = null;
       })
       .addCase(getRecentOrders.fulfilled, (state, action) => {
-        state.stats.recentOrders = Array.isArray(action.payload) ? action.payload : [];
+        state.stats.recentOrders = Array.isArray(action.payload)
+          ? action.payload
+          : [];
         state.stats.status = "succeeded";
       })
       .addCase(getRecentOrders.rejected, (state, action) => {
@@ -276,22 +350,13 @@ const orderSlice = createSlice({
 
 export default orderSlice.reducer;
 
-// ---------- SELECTORS (use these in your components) ----------
+// ---------- SELECTORS ----------
 export const selectOrdersState = (state) => state.orders;
-
-export const selectTotalRevenue = (state) =>
-  state.orders?.stats?.totalRevenue ?? 0;
-
-export const selectTotalOrders = (state) =>
-  state.orders?.stats?.totalOrders ?? 0;
-
+export const selectTotalRevenue = (state) => state.orders?.stats?.totalRevenue ?? 0;
+export const selectTotalOrders = (state) => state.orders?.stats?.totalOrders ?? 0;
 export const selectRecentOrders = (state) =>
   Array.isArray(state.orders?.stats?.recentOrders)
     ? state.orders.stats.recentOrders
     : [];
-
-export const selectStatsStatus = (state) =>
-  state.orders?.stats?.status ?? "idle";
-
-export const selectStatsError = (state) =>
-  state.orders?.stats?.error ?? null;
+export const selectStatsStatus = (state) => state.orders?.stats?.status ?? "idle";
+export const selectStatsError = (state) => state.orders?.stats?.error ?? null;
