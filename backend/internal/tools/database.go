@@ -203,6 +203,19 @@ func InitDB(filepath string) {
 	if _, err = DB.Exec(afterDelete); err != nil {
 		log.Fatalf("Failed to create trg_wi_after_delete: %v", err)
 	}
+
+	modify := `ALTER TABLE warehouses ADD COLUMN lat REAL;
+	ALTER TABLE warehouses ADD COLUMN lng REAL;
+
+	ALTER TABLE customers ADD COLUMN lat REAL;
+	ALTER TABLE customers ADD COLUMN lng REAL;
+
+	ALTER TABLE products ADD COLUMN weight REAL DEFAULT 1.0;
+	ALTER TABLE orders ADD COLUMN shipping_cost REAL DEFAULT 0;`
+
+	if _, err = DB.Exec(modify); err != nil {
+		log.Printf("Failed to modify tables (might be already modified): %v", err)
+	}
 }
 
 // InsertDummyUser inserts a default user into the users table if not already present for sample login.
